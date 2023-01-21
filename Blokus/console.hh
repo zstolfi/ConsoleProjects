@@ -49,6 +49,7 @@ public: /* Public Constructor */
 		LONG_PTR styleRemove = WS_MAXIMIZEBOX | WS_SIZEBOX;
 		LONG_PTR oldStyle = GetWindowLongPtr(window, GWL_STYLE);
 		SetWindowLongPtr(window, GWL_STYLE, oldStyle & ~styleRemove | styleAdd);
+		ShowScrollBar(window, SB_BOTH, false);
 	}
 
 public: /* Methods For Main Function */

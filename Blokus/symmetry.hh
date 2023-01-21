@@ -15,6 +15,9 @@ struct Group {
 	std::vector<Action> elements;
 	std::vector<Action> inverses;
 
+	// OPT: make a constructor to assert elements & inverses
+	//      are set with the same size
+
 	const Action& operator[](signed index) const {
 		if (index >= 0)  { return elements[ index];  }
 		else             { return inverses[-index]; }

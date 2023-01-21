@@ -1,87 +1,72 @@
+#include "console.hh"
+#include "draw.hh"
+
 #include "symmetry.hh"
 #include "matrix.hh"
 #include "pieces.hh"
-#include <iostream>
 
-void printPieceOption(const PieceOption&);
-template <typename T> void printMatrix(const Matrix<T>&);
-template <typename T> void printMatrix(const Matrix<T>&, auto&& asChar);
+/* -------------- */
+/*  App Behavior  */
+/* -------------- */
 
-int main() {
+class MainApp : public ConsoleWindow {
+public: /* Initialize Canvas */
+	const unsigned width = getWidth()/2, height = getHeight();
+	using canvasType = DrawSquare<std::vector<CHAR_INFO>, WCHAR, WORD>;
 
-	std::cout << "start\n\n";
+	canvasType canvas{
+		getScreenBuffer(), getWidth(), getHeight() ,
+		[](CHAR_INFO& pix, WCHAR chr) { pix.Char.UnicodeChar = chr; } ,
+		[](CHAR_INFO& pix, WORD  col) { pix.Attributes       = col; }
+	};
 
-	/*for (std::size_t i=0; i < Pieces.size(); i++) {
-		std::cout << "All " << Pieces[i].numOptions() << " rotations of piece #" << (i+1) <<":\n";
-		for (std::size_t j=0; j < Pieces[i].numOptions(); j++) {
-			std::cout << (i+1) << "." << (j+1) << ":\n";
-			printPieceOption(Pieces[i].getOption(j));
-			std::cout << "\n";
-		}
-	}*/
+	/* Constructor */
+	using ConsoleWindow::ConsoleWindow;
 
-	for (std::size_t i=0; i < Pieces.size(); i++) { std::size_t j = 0;
-	// for (std::size_t j=0; j < Pieces[i].numOptions(); j++) {
-		const PieceOption& exampleOption = Pieces[i].getOption(j);
-		std::cout << (i+1) << "." << (j+1) << "\n";
-		std::cout << "shape:\n";
-		printPieceOption(exampleOption);
-		std::cout << "\nrules:\n";
-		printMatrix(exampleOption.getShapeRules(), [](auto n) {
-			/**/ if (n == 1) { return '#'; }
-			else if (n == 2) { return '.'; }
-			else             { return ' '; }
-		});
-		std::cout << "\n";
-	}// }
+private: /* Game Variables */
 
-	/*std::cout << "And now to experiment with making the 20 x 20 board required for Blokus\n\n";
+	virtual void setup() final {
+		canvas.blankPix = CHAR_INFO{L' ', 0x000F};
+		canvas.clear();
+		// noDraw = true;
+	}
 
-	Matrix<char> board {{20,20}};
-	board.iterate([&](unsigned i, unsigned j) {
-		board[i,j] = (i%2 ^ j%2) ? '#' : ' ';
-	});
+	virtual void update() final {
+		if (keys[VK_ESCAPE] == keyState::PRESSED) { quitConsole(); }
+	}
 
-	for (unsigned i=0; i < board.size().m; i++) {
-		for (unsigned j=0; j < board.size().n; j++) {
-			std::cout << board[i,j] << board[i,j];
-		}
-		std::cout << "\n";
-	}*/
+	virtual void draw() final {
+		canvas.clear();
+		for (unsigned x=0; x < width ; x++) {
+		for (unsigned y=0; y < height; y++) {
+			canvas.squareBorder({ 9, 9,31,31}, CHAR_INFO{L'█', 0x0008});
+			canvas.drawImplicit({10,10,30,30}, CHAR_INFO{L'█', 0x0004} ,
+				[&](unsigned x, unsigned y) { return (x&1) ^ (y&1); });
+		} }
+	}
+};
 
-	std::cout << "end\n\n";
+
+
+/* -------------- */
+/*      Main      */
+/* -------------- */
+
+struct parseArguments {
+	/*settings go here*/
+
+	parseArguments(int argc, char* args[]) {}
+};
+
+int main(int argc, char* args[]) {
+	auto settings = parseArguments{argc, args};
+	MainApp app{L"Blokus Experiments", 
+               {.width = 80, .height = 40, .fontW = 8, .fontH = 16}};
+
+    app.start();
+    while (!app.quit()) {
+    	app.run();
+    }
 
 	return 0;
-}
-
-
-
-template <typename T>
-void printMatrix(const Matrix<T>& matrix, auto&& asChar) {
-	for (unsigned i=0; i < matrix.size().m; i++) {
-		std::cout << "| ";
-		for (unsigned j=0; j < matrix.size().n; j++) {
-			std::cout << asChar(matrix[i,j]);
-            if (j+1 < matrix.size().n) { std::cout << " "; }
-		}
-		std::cout << " |\n";
-	}
-}
-template <typename T>
-void printMatrix(const Matrix<T>& matrix) {
-	return printMatrix(matrix, [](auto n){ return +n; });
-}
-
-void printPieceOption(const PieceOption& piece) {
-	const auto shape = piece.getShape();
-	const auto size = shape.size();
-
-	for (unsigned i=0; i < size.m; i++) {
-		std::cout << "| ";
-		for (unsigned j=0; j < size.n; j++) {
-			std::cout << ((shape[i,j] == 0) ? ' ' : '#');
-			if (j+1 < shape.size().n) { std::cout << " "; }
-		}
-		std::cout << " |\n";
-	}
 }

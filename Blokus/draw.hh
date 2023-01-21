@@ -3,6 +3,7 @@
 
 // screenType = container of pixType's
 // pixType = character & color
+// squareMode means treat pairs of chars as a pixel, like so: ██
 template <typename screenType, typename charType, typename colorType, bool squareMode=false>
 class Draw {
 public:
@@ -25,27 +26,71 @@ private:
 
 public:
 	pixType blankPix = {};
-	// std::map<std::string, colorType> palette = {};
-
+	
 
 
 	void fill(pixType p) { std::fill(screen.begin(), screen.end(), p); }
 	void clear() { fill(blankPix); }
 
-	#define Make_Func(NAME,T,VAR,ACTION) \
-		void NAME(std::size_t i         , T VAR) { ACTION } \
-		void NAME(unsigned x, unsigned y, T VAR) { NAME(y * width + x, VAR); }
 
-	Make_Func(setPixel, pixType, pix, 
-		screen[i] = pix;           
-	)
-	Make_Func(setChar , charType, chr, 
-		applyChar (screen[i], chr);
-	)
-	Make_Func(setColor, colorType, col, 
-		applyColor(screen[i], col);
-	)
-	#undef Make_Func
+
+	#define Make_Pixel_Func(NAME,T,VAR) \
+	void NAME(std::size_t i, T VAR) { \
+		if constexpr (!squareMode) { F(i); } \
+		else { \
+			i *= 2; \
+			if (width&1) i += i/(width-1); /*skip last line when width is odd*/ \
+			F(i+0); F(i+1); \
+		} \
+	} \
+	void NAME(unsigned x, unsigned y, T VAR) { \
+		NAME(y * (squareMode ? width/2 : width) + x, VAR); \
+	}
+
+	#define F(i) screen[i] = pix;
+	Make_Pixel_Func(setPixel, pixType, pix);
+	#undef F
+
+	#define F(i) applyChar(screen[i], chr);
+	Make_Pixel_Func(setChar, charType, chr);
+	#undef F
+
+	#define F(i) applyColor(screen[i], col);
+	Make_Pixel_Func(setColor, colorType, col);
+	#undef F
+
+	#undef Make_Pixel_Func
+
+
+
+	struct bounds { unsigned x0, y0, x1, y1; };
+
+	void square(bounds b, pixType p) {
+		drawImplicit(b, p, [&](unsigned x, unsigned y) {
+			return true;
+		});
+	}
+
+	void squareBorder(bounds b, pixType p) {
+		drawImplicit(b, p, [&](unsigned x, unsigned y) {
+			return !(b.x0+1 <= x&&x < b.x1-1)
+			    || !(b.y0+1 <= y&&y < b.y1-1);
+		});
+	}
+
+// private:
+	void iterate(bounds b, auto&& f) {
+		for (unsigned x=b.x0; x < b.x1; x++) {
+		for (unsigned y=b.y0; y < b.y1; y++) {
+			f(x,y);
+		} }
+	}
+
+	void drawImplicit(bounds b, pixType p, auto&& condition) {
+		iterate(b, [&](unsigned x, unsigned y) {
+			if (condition(x,y)) { setPixel(x,y, p); }
+		});
+	}
 };
 
 template<typename screenType, typename charType, typename colorType>
