@@ -1,0 +1,8 @@
+Wow
+These lines are loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong
+Too long infact.
+123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123
+
+I also haven't tested if enters work yet.
+I bet they do though :D
+Rules are complicated. Even more so when you have to implement them from scratch.

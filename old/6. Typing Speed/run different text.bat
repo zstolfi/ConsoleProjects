@@ -1,0 +1,1 @@
+start Typing_speed "src\mcchicken.txt"
