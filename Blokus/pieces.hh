@@ -22,7 +22,7 @@ private:
 	Matrix<char> generateBorderRules() {
 		Matrix<char> shapeBig = shape.crop({1,1,1,1});
 		Matrix<char> result{shapeBig.size()};
-		Matrix<int> convolve {{3,3}, {1,0,1 , 0,0,0 , 1,0,1}};
+		Matrix<char> convolve {{3,3}, {1,0,1 , 0,0,0 , 1,0,1}};
 
 		const auto [m,n] = shapeBig.size();
 		shapeBig.iterate([&](unsigned i, unsigned j) {

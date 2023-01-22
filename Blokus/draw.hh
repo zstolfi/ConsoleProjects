@@ -1,5 +1,5 @@
 #pragma once
-#include <map>
+#include <algorithm>
 
 // screenType = container of pixType's
 // pixType = character & color
@@ -11,6 +11,7 @@ public:
 	     auto&& applyChar, auto&& applyColor)
 	: screen{screen}
 	, width{width}, height{height}
+	, Width_Square{squareMode ? width/2 : width}
 	, applyChar{applyChar}, applyColor{applyColor} {}
 
 	screenType& screen;
@@ -18,6 +19,8 @@ public:
 	const unsigned height;
 
 private:
+	const unsigned Width_Square;
+
 	using pixType = screenType::value_type;
 	using Fchr = void(pixType&, charType);
 	using Fcol = void(pixType&, colorType);
@@ -44,7 +47,7 @@ public:
 		} \
 	} \
 	void NAME(unsigned x, unsigned y, T VAR) { \
-		NAME(y * (squareMode ? width/2 : width) + x, VAR); \
+		NAME(y * Width_Square + x, VAR); \
 	}
 
 	#define F(i) screen[i] = pix;
@@ -63,16 +66,18 @@ public:
 
 
 
-	struct bounds { unsigned x0, y0, x1, y1; };
+	struct bounds {
+		signed x0, y0, x1, y1; 
+	};
 
 	void square(bounds b, pixType p) {
-		drawImplicit(b, p, [&](unsigned x, unsigned y) {
+		drawImplicit(b, p, [&](signed x, signed y) {
 			return true;
 		});
 	}
 
 	void squareBorder(bounds b, pixType p) {
-		drawImplicit(b, p, [&](unsigned x, unsigned y) {
+		drawImplicit(b, p, [&](signed x, signed y) {
 			return !(b.x0+1 <= x&&x < b.x1-1)
 			    || !(b.y0+1 <= y&&y < b.y1-1);
 		});
@@ -80,17 +85,21 @@ public:
 
 // private:
 	void iterate(bounds b, auto&& f) {
-		for (unsigned x=b.x0; x < b.x1; x++) {
-		for (unsigned y=b.y0; y < b.y1; y++) {
+		// max & min ensure 'f' is only applied inside the screen
+		for (signed x = std::max<signed>(0, b.x0); x < std::min<signed>(Width_Square, b.x1); x++) {
+		for (signed y = std::max<signed>(0, b.y0); y < std::min<signed>(height      , b.y1); y++) {
 			f(x,y);
 		} }
 	}
 
 	void drawImplicit(bounds b, pixType p, auto&& condition) {
-		iterate(b, [&](unsigned x, unsigned y) {
+		iterate(b, [&](signed x, signed y) {
 			if (condition(x,y)) { setPixel(x,y, p); }
 		});
 	}
+
+private:
+
 };
 
 template<typename screenType, typename charType, typename colorType>
