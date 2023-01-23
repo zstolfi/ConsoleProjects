@@ -16,3 +16,8 @@ struct CropParams {
 	signed nStart = 0;
 	signed nEnd   = 0;
 };
+
+template <typename T, typename... Args>
+bool Is_Either(T&& value, Args&&... args) {
+	return ((value == args) || ...); // fold expression
+}

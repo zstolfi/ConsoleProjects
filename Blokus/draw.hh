@@ -37,17 +37,19 @@ public:
 
 
 
-	#define Make_Pixel_Func(NAME,T,VAR) \
+	#define Make_Pixel_Func(NAME,T,VAR/*F*/) \
+	template <bool squarePix = squareMode> \
 	void NAME(std::size_t i, T VAR) { \
-		if constexpr (!squareMode) { F(i); } \
+		if constexpr (!squarePix) { F(i); } \
 		else { \
 			i *= 2; \
 			if (width&1) i += i/(width-1); /*skip last line when width is odd*/ \
 			F(i+0); F(i+1); \
 		} \
 	} \
+	template <bool squarePix = squareMode> \
 	void NAME(unsigned x, unsigned y, T VAR) { \
-		NAME(y * Width_Square + x, VAR); \
+		NAME<squarePix>(y * (squarePix ? Width_Square : width) + x, VAR); \
 	}
 
 	#define F(i) screen[i] = pix;
@@ -66,9 +68,7 @@ public:
 
 
 
-	struct bounds {
-		signed x0, y0, x1, y1; 
-	};
+	struct bounds { signed x0, y0, x1, y1; };
 
 	void square(bounds b, pixType p) {
 		drawImplicit(b, p, [&](signed x, signed y) {
@@ -81,6 +81,17 @@ public:
 			return !(b.x0+1 <= x&&x < b.x1-1)
 			    || !(b.y0+1 <= y&&y < b.y1-1);
 		});
+	}
+
+	void text(const charType* string) {
+		signed x = 0, y = 0;
+		for (std::size_t i=0; string[i] != '\0'; i++) {
+			charType c = string[i];
+			if (c == '\n') { x = 0; y++; break; }
+			if ((0 <= x&&x < signed{width}) && (0 <= y&&y < signed{height})) {
+				setChar<false>(x,y, c);
+			} x++;
+		}
 	}
 
 // private:
@@ -98,9 +109,7 @@ public:
 		});
 	}
 
-private:
-
 };
 
 template<typename screenType, typename charType, typename colorType>
-using DrawSquare = Draw<screenType, charType, colorType, true>;
+using DrawSquares = Draw<screenType, charType, colorType, true>;

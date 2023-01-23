@@ -77,6 +77,7 @@ protected: /* App-only Methods */
 
 	bool noDraw = false; // true = draw on frame 0
 
+	// using timePoint = steady_clock::time_point;
 	unsigned frameCount = 0;
 	seconds totalTime{0};
 	seconds Δtime    {1e-3};
