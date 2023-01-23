@@ -83,12 +83,11 @@ public:
 		});
 	}
 
-	void text(const charType* string) {
-		signed x = 0, y = 0;
+	void text(unsigned x, unsigned y, const charType* string) {
 		for (std::size_t i=0; string[i] != '\0'; i++) {
 			charType c = string[i];
 			if (c == '\n') { x = 0; y++; break; }
-			if ((0 <= x&&x < signed{width}) && (0 <= y&&y < signed{height})) {
+			if ((0 <= x&&x < width) && (0 <= y&&y < height)) {
 				setChar<false>(x,y, c);
 			} x++;
 		}

@@ -93,6 +93,10 @@ private: /* Game Variables */
 			if (keys['B'] == keyState::PRESSED) { setState(MENU); break; }
 			} break;
 
+		case VIEW_BOARD: { /* Use arrow keys to view board history */
+
+			} break;
+
 		case PIECE_SELECT: { /* Select colors, player count, player order */
 
 			/*move selection*/
@@ -119,9 +123,12 @@ private: /* Game Variables */
 			if (cursorY < loopY0) { cursorY = loopY1; }
 			if (cursorY > loopY1) { cursorY = loopY0; }
 
-			if (keys[VK_RETURN] == keyState::PRESSED) { 
-				// setState((/*check piece placement*/) ? POSITION_ACCEPT : POSITION_REJECT); break;
-			}
+			// TODO: allow player to go back & select other piece
+			// TODO: use more natural movements (i.e., flip rotate)
+			// if (keys[VK_RETURN] == keyState::PRESSED) { 
+			// 	setState((/*check piece placement*/) ? POSITION_ACCEPT : POSITION_REJECT); break;
+			// }
+			if (keys[VK_RETURN] == keyState::PRESSED) { setState(GAME_OVER); break; }
 			} break;
 
 		case POSITION_REJECT: { /* Blink for ~1 second */
@@ -176,7 +183,11 @@ private: /* Game Variables */
 	}
 
 	virtual void draw() final {
-		if (state == QUIT) { canvas.text(L"Are you sure you want to quit?"); return; }
+		if (state == QUIT) {
+			canvas.text(0, 0, L"Are you sure you want to quit?");
+			canvas.text(0, 39, L"[ESC quit]      [B back]");
+			return; // don't clear screen
+		}
 		canvas.clear();
 
 		/* Draw the bpard */
@@ -191,26 +202,57 @@ private: /* Game Variables */
 		switch (state) {
 
 		case MENU: {
-			canvas.text(L"<BLOKUS>");
+			canvas.text(0, 0, L"<BLOKUS>");
+			canvas.text(0, 39, L"[S start]      [A about]");
 			} break;
 
 		case ABOUT: {
-			canvas.text(L"This game was created by a really awesome dude.");
+			canvas.text(0, 0, L"This game was created by a really awesome dude.");
+			canvas.text(0, 39, L"[B back]");
 			} break;
 
 		case START_OPTIONS: {
-			canvas.text(L"There are no options right now, press C to continue ");
+			canvas.text(0, 0, L"There are no options right now, press C to continue ");
+			canvas.text(0, 39, L"[C continue]      [B back]");
 			} break;
 
-		case PIECE_SELECT: {} break;
+		case PIECE_SELECT: {
+			canvas.text(0, 0, L"Arrow keys to select piece type & orientation");
+			canvas.text(0, 39, L"[ENTER continue]");
+		} break;
 
 		case PIECE_MOVE: {
+			canvas.text(0, 0, L"Move the piece around & choose permutation with A or D");
+			canvas.text(0, 39, L"[ENTER continue]");
+
 			canvasType::bounds pieceBounds = {cursorX, cursorY, cursorX + currentSize.n, cursorY + currentSize.m};
 			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
 				[&](signed x, signed y) { return selected.getShape()[y-cursorY, x-cursorX]; });
 			} break;
 
-		case STATS: {} break;
+		case POSITION_ACCEPT: {
+			canvas.text(0, 0, L"Position accepted!");
+			} break;
+
+		case POSITION_REJECT: {
+			canvas.text(0, 0, L"Position REJECTED!");
+			} break;
+
+		case PLAYER_FINAL_MOVE: {} break;
+
+		case GAME_OVER: {
+			canvas.text(0, 0, L"GAME OVER");
+			canvas.text(0, 39, L"[ENTER view stats]");
+			} break;
+
+		case STATS: {
+			canvas.text(0, 0, L"(Stats go here, but nothing yet)");
+			canvas.text(0, 39, L"[M menu]      [Q quit]");
+			} break;
+
+		/* Do nothing for these */
+		case VIEW_BOARD: {} break;
+		case QUIT: {} break;
 		}
 	}
 };
