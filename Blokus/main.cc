@@ -69,28 +69,30 @@ private: /* Game Variables */
 	}
 
 	virtual void update() final {
+		#define If_Key(VK,ACTION) if (keys[VK] == keyState::PRESSED) { ACTION }
+		#define Key_To_State(VK,STATE) If_Key(VK, setState(STATE); return; )
 		if (state != QUIT)
-			if (keys[VK_ESCAPE] == keyState::PRESSED) { setState(QUIT); return; }
+			Key_To_State(VK_ESCAPE, QUIT); 
 
 		switch (state) {
 
 		case MENU: { /* Display awesome logo, user can select 'about' or 'start options' */
 
-			if (keys['A'] == keyState::PRESSED) { setState(ABOUT); break; }
-			if (keys['S'] == keyState::PRESSED) { setState(START_OPTIONS); break; }
+			Key_To_State('A', ABOUT);
+			Key_To_State('S', START_OPTIONS);
 			} break;
 
 		case ABOUT: { /* Info about the game, user can select 'back' */
 
-			if (keys['B'] == keyState::PRESSED) { setState(MENU); break; }
+			Key_To_State('B', MENU);
 			} break;
 
 		case START_OPTIONS: { /* Select colors, player count, player order */
 
 			/*continue*/
-			if (keys['C'] == keyState::PRESSED) { setState(PIECE_SELECT); break; }
+			Key_To_State('C', PIECE_SELECT);
 			/*back*/
-			if (keys['B'] == keyState::PRESSED) { setState(MENU); break; }
+			Key_To_State('B', MENU);
 			} break;
 
 		case VIEW_BOARD: { /* Use arrow keys to view board history */
@@ -100,10 +102,10 @@ private: /* Game Variables */
 		case PIECE_SELECT: { /* Select colors, player count, player order */
 
 			/*move selection*/
-			if (keys[VK_LEFT ] == keyState::PRESSED) { /* code */ }
-			if (keys[VK_RIGHT] == keyState::PRESSED) { /* code */ }
+			If_Key(VK_LEFT , /* code */ )
+			If_Key(VK_RIGHT, /* code */ )
 
-			if (keys[VK_RETURN] == keyState::PRESSED) { setState(PIECE_MOVE); break; }
+			Key_To_State(VK_RETURN, PIECE_MOVE);
 			} break;
 
 		case PIECE_MOVE: { /* Move selected piece with arrow keys, enter to place */
@@ -125,61 +127,60 @@ private: /* Game Variables */
 
 			// TODO: allow player to go back & select other piece
 			// TODO: use more natural movements (i.e., flip rotate)
-			// if (keys[VK_RETURN] == keyState::PRESSED) { 
-			// 	setState((/*check piece placement*/) ? POSITION_ACCEPT : POSITION_REJECT); break;
-			// }
-			if (keys[VK_RETURN] == keyState::PRESSED) { setState(GAME_OVER); break; }
+			Key_To_State(RETURN, true ? POSITION_ACCEPT : POSITION_REJECT);
 			} break;
 
 		case POSITION_REJECT: { /* Blink for ~1 second */
 
-			/*timeout code*/
-			setState(PIECE_MOVE); break;
+			if (stateTime < second{0.5}) { return; }
+			setState(PIECE_MOVE); return;
 			} break;
 
 		case POSITION_ACCEPT: { /* Blink for ~1 second, then go to next player */
 
-			/*timeout code*/
+			if (stateTime < second{0.5}) { return; }
 			/*if currentPlayer.numPieces = 0*/
 				/*remove current player*/
 				/*setState(PLAYER_FINAL_MOVE);*/
 			/*else*/
 				/*nextPlayer()*/
 
-			setState(PIECE_SELECT); break;
+			setState(PIECE_SELECT); return;
 			} break;
 
 		case PLAYER_FINAL_MOVE: { /* display 'player X is out' message, then go to next player */
 
-			/*possible timeout, or wait for keypress*/
+			if (stateTime < seconds{2}) { return; }
 			/*if all players.numPieces = 0*/
 				/*setState(GAME_OVER)*/
 			/*else*/
 				/*nextPlayer()*/
-			setState(PIECE_SELECT); break;
+			setState(PIECE_SELECT); return;
 			} break;
 
 		case GAME_OVER: { /* display 'player X won' or possible ties */
 
 			/*continue*/
-			if (keys[VK_RETURN] == keyState::PRESSED) { setState(STATS); break; }
+			Key_To_State(VK_RETURN, STATS);
 			} break;
 
-		case STATS: { /* display stats for each player */
+		case STATS: { /* display stats for each player  + board history*/
 
 			/*back to menu*/
-			if (keys['M'] == keyState::PRESSED) { setState(MENU); break; }
+			Key_To_State('M', MENU);
 			/*quit*/
-			if (keys['Q'] == keyState::PRESSED) { setState(QUIT); break; }
+			Key_To_State('Q', QUIT);
 			} break;
 
 		case QUIT: {
 
-			if (keys[VK_ESCAPE] == keyState::PRESSED) { quitConsole(); break; }
-			if (keys['B'] == keyState::PRESSED) { undoState(); break; }
-
+			If_Key(VK_ESCAPE, quitConsole(); break; )
+			If_Key('B', undoState(); break; )
 			} break;
+
 		}
+		#undef If_Key
+		#undef Key_To_State
 	}
 
 	virtual void draw() final {
