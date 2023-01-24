@@ -177,8 +177,8 @@ private: /* Game Variables */
 			If_Key(VK_ESCAPE, quitConsole(); break; )
 			If_Key('B', undoState(); break; )
 			} break;
-
 		}
+
 		#undef If_Key
 		#undef Key_To_State
 	}
