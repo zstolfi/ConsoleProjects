@@ -15,99 +15,77 @@ class BoardHistory {
 #include <utility> // std::pair
 #include <optional>
 
-enum class fileFormat { CANONICAL };
-
 namespace /*private*/ {
 	// using streamPos = std::streampos;
 	// using streamOff = std::streamoff;
 	using ssRange     = std::pair<std::streampos, std::streampos>;
 	using ssRangeList = std::map <std::streampos, std::streampos>;
 
-	void iterateRaw(std::istringstream& str, auto&& f) {
-		bool cont = true;
-		for (char c; str.get(c) && cont; ) {
-			if constexpr (std::is_invocable_v<decltype(f),char,bool&>)
-				f(c, cont); else f(c);
-		}
-	}
-	// TODO: integrate input string + ignore list into 1 class
-	// TODO: add function to said class which cleans up the range data
-	void iterateWithIgnore(std::istringstream& str, const ssRangeList& ignoreList, auto&& f) {
-		bool cont = true;
-		for (char c; cont && str.get(c); ) {
-			std::streampos i = str.tellg() - std::streamoff{1};
-			if (ignoreList.contains(i)) { str.seekg(ignoreList.at(i)); continue; }
-
-			if constexpr (std::is_invocable_v<decltype(f),char,bool&>)
-				f(c, cont); else f(c); // pseudo-break functionality
-		}
-	}
+	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
 
 	namespace parse {
-		std::optional<ssRange> whitespace(std::istringstream& str, const ssRangeList& ignoreList) {
+		std::optional<ssRange> whitespace(std::stringstream& str) {
 			ssRange range = {str.tellg(), str.tellg()};
-			iterateWithIgnore(str, ignoreList, [&](char c, bool& cont) {
-				if (!Is_Either(c,' ',',','\r','\n','\t')) { cont = false; }
-			});
-			range.second = str.tellg() - std::streamoff{1};
-			if (range.second > range.first) { return range; }
-			else { return std::nullopt; }
+			for (char c; str.get(c); ) {
+				if (!isWhitespace(c)) { break; }
+				range.second += std::streamoff{1};
+			}
+			if (range.second > range.first) return range; else return std::nullopt;
 		}
 	}
 }
 
+enum class fileFormat { CANONICAL };
+
 template <fileFormat format = fileFormat::CANONICAL>
-BoardHistory ParseHistory(std::istringstream& str) {
+BoardHistory ParseHistory(std::stringstream& strRaw) {
 	std::cout << "Parsing History...\n";
 	/* preprocess */
-	// Ignore comments & leading/trailing whitespaces
-	ssRangeList commentRanges{};
-	iterateRaw(str, [&](char c) {
-		std::streampos i = str.tellg();
-		/**/ if (c == '(') { commentRanges[i - std::streamoff{1}]; } // TODO: check for mismatching parenthesis
-		else if (c == ')') { commentRanges.rbegin()->second = i; }
-	});
+	// Create 'str' variable wich is just strRaw without comments or leading/trailing whitespaces
+	ssRangeList commentRanges = {};
+	ssRangeList whitespaceRanges = {};
+
+	bool insideParen = false;
+	for (char c; strRaw.get(c); ) {
+		std::streampos i0 = strRaw.tellg() - std::streamoff{1};
+		std::streampos i1 = strRaw.tellg();
+
+		bool prevInsideParen = insideParen;
+		if (c == '(') { insideParen = true;  commentRanges[i0]; } // TODO: check for mismatching parenthesis
+		if (c == ')') { insideParen = false; commentRanges.rbegin()->second = i1; }
+
+		if (isWhitespace(c) || insideParen || prevInsideParen) {
+			auto rbegin = whitespaceRanges.rbegin();
+			auto rend   = whitespaceRanges.rend();
+			if (rbegin != rend && rbegin->second == i0)
+				rbegin->second += std::streamoff{1};
+			else
+				whitespaceRanges[i0] = i1;
+		}
+	}
 
 	std::cout << "There are " << commentRanges.size() << " comments.\n";
 	for (const auto& [start, end] : commentRanges) {
 		std::cout << "\t" << start << " - " << end << "\n";
 	}
 
-	str.clear(); str.seekg(0);
-	std::optional<ssRange> whitespaceLeading = parse::whitespace(str, commentRanges);
-	std::optional<ssRange> whitespaceTrailing = std::nullopt;
+	std::cout << "There are " << whitespaceRanges.size() << " groups of whitespace chars.\n";
+	auto first = whitespaceRanges.begin();
+	auto last  = whitespaceRanges.rbegin();
+	std::cout << "\tThe first is: " << first->first << " - " << first->second << "\n";
+	std::cout << "\tThe last is: "  << last ->first << " - " << last ->second << "\n";
 
-	auto lastWhitespace = whitespaceLeading;
-	iterateRaw(str, [&](char c) {
-		auto maybe_ws = parse::whitespace(str, commentRanges);
-		if (maybe_ws) { lastWhitespace = maybe_ws; }
-	});
-	str.seekg(0, std::ios_base::end);
-	std::streampos length = str.tellg();
-	if (lastWhitespace->second == length) { whitespaceTrailing = lastWhitespace; }
+	std::stringstream str{};
 
-	if (lastWhitespace) {
-		std::cout << "The last whitespace is\n";
-		std::cout << "\t" << lastWhitespace->first << " - " << lastWhitespace->second << "\n";
+	strRaw.clear(); strRaw.seekg(0);
+	for (char c; strRaw.get(c); ) {
+		std::streampos i = strRaw.tellg() - std::streampos{1};
+		if (commentRanges.contains(i)) { strRaw.seekg(commentRanges.at(i)); continue; }
+		str.put(c);
+		if (strRaw.peek() == EOF) { str << "[EOF]"; }
 	}
 
-	// std::streamoff endOffset = 0;
-	// do {
-	// 	endOffset--;
-	// 	str.clear(); str.seekg(endOffset, std::ios_base::end);
-	// } while (parse::whitespace(str, commentRanges));
-	// endOffset++;
-
-	// str.clear(); str.seekg(endOffset, std::ios_base::end);
-	// auto whitespaceTrailing = (endOffset == 0) ? std::nullopt : parse::whitespace(str, commentRanges);
-
-	std::cout << "There is" << (whitespaceLeading  ? "" : " no") << " leading whitespace.\n";
-	std::cout << "There is" << (whitespaceTrailing ? "" : " no") << " trailing whitespace.\n";
-
-	// commentRanges.insert(whitespaceLeading);
-	// commentRanges.insert(whitespaceTrailing);
-
-
+	std::cout << "\"" << str.str() << "\"\n";
 
 	// /* tokenize */
 	// // (I'm actually not too familair with interpreter/compiler terms,

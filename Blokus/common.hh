@@ -18,6 +18,6 @@ struct CropParams {
 };
 
 template <typename T, typename... Args>
-bool Is_Either(T&& value, Args&&... args) {
+constexpr bool Is_Either(T&& value, Args&&... args) {
 	return ((value == args) || ...); // fold expression
 }
