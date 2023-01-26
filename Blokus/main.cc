@@ -127,18 +127,18 @@ private: /* Game Variables */
 
 			// TODO: allow player to go back & select other piece
 			// TODO: use more natural movements (i.e., flip rotate)
-			Key_To_State(RETURN, true ? POSITION_ACCEPT : POSITION_REJECT);
+			Key_To_State(VK_RETURN, true ? POSITION_ACCEPT : POSITION_REJECT);
 			} break;
 
 		case POSITION_REJECT: { /* Blink for ~1 second */
 
-			if (stateTime < second{0.5}) { return; }
+			if (stateTime < seconds{0.5}) { return; }
 			setState(PIECE_MOVE); return;
 			} break;
 
 		case POSITION_ACCEPT: { /* Blink for ~1 second, then go to next player */
 
-			if (stateTime < second{0.5}) { return; }
+			if (stateTime < seconds{0.5}) { return; }
 			/*if currentPlayer.numPieces = 0*/
 				/*remove current player*/
 				/*setState(PLAYER_FINAL_MOVE);*/

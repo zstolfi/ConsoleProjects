@@ -9,7 +9,7 @@ LINKER_FLAGS = -static
 
 #Compile!
 all :
-	g++ main.cc $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o Blokus
+	g++ main.cc -o Blokus $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS)
 
 test :
-	g++ parseTest.cc $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o ParseTest
+	g++ parseTest.cc -o ParseTest $(LIBRARY_PATHS) $(COMPILER_FLAGS) $(LINKER_FLAGS)
