@@ -1,5 +1,5 @@
-#include <fstream>
 #include "board history.hh"
+#include <fstream>
 
 int main(int argc, char* args[]) {
 	if (argc <= 1) { std::cerr << "Error!: No game history provided\n"; return 1; }

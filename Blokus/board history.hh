@@ -1,8 +1,26 @@
 #pragma once
 #include "common.hh"
+#include <vector>
+#include <variant>
 
-class BoardHistory {
+namespace /*private*/ {
+	struct PieceID {
+		unsigned num, rot;
+	};
 
+	struct NoMove {};
+
+	struct PlayerMove {
+		PieceID id;
+		unsigned x, y;
+	};
+}
+
+struct BoardHistory {
+	unsigned numPlayers;
+	std::vector<unsigned> playerOrder;
+	// player color is not needed by the computer
+	std::vector<std::variant<PlayerMove,NoMove>>;
 };
 
 
@@ -10,7 +28,6 @@ class BoardHistory {
 #include <iostream>
 #include <sstream>
 #include <string_view>
-#include <vector>
 #include <map>
 #include <utility> // std::pair
 #include <optional>
@@ -23,16 +40,64 @@ namespace /*private*/ {
 
 	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
 
-	namespace parse {
-		std::optional<ssRange> whitespace(std::stringstream& str) {
-			ssRange range = {str.tellg(), str.tellg()};
-			for (char c; str.get(c); ) {
-				if (!isWhitespace(c)) { break; }
-				range.second += std::streamoff{1};
+	// if we fail, move the curor back to the start
+	#define returnFail str.seekg(result.first ); return std::nullopt;
+	// otherwise, set the cursor back 1 position
+	#define returnPass str.seekg(result.second); return result;
+
+	// assets/canonical parse diagram.png
+	using parseFunc = std::optional<ssRange>(std::stringstream&);
+	parseFunc parse_CANNONICAL_FORMAT, parse_INT;
+
+
+	std::optional<ssRange> parseID(std::stringstream& str) {
+		ssRange result = {str.tellg(), str.tellg()};
+		enum { X, POINT, Y } state = X;
+		for (char c; str.get(c); result.second += std::streamoff{1}) {
+			if (state == X) {
+				if(!parseINT(str)) { returnFail; }
+				state = POINT;
+			} else if (state == POINT) {
+				if (c != '.') { returnFail; }
+				state = Y;
+			} else if (state == Y) {
+				if (!parseINT(str)) { returnFail; }
+				break;
 			}
-			if (range.second > range.first) return range; else return std::nullopt;
 		}
+		returnPass;
 	}
+
+	std::optional<ssRange> parseINT(std::stringstream& str) {
+		ssRange result = {str.tellg(), str.tellg()};
+		enum { FIRST, REST } state = FIRST;
+		for (char c; str.get(c); result.second += std::streamoff{1}) {
+			if (state == FIRST) {
+				if (!('0' <= c&&c <= '9')) { returnFail; }
+				state = REST;
+			} else if (state == REST) {
+				if (!('0' <= c&&c <= '9')) { break; }
+			}
+		}
+		returnPass;
+	}
+
+	std::optional<ssRange> parseWhitespace(std::stringstream& str) {
+		ssRange result = {str.tellg(), str.tellg()};
+		enum { FIRST, REST } state = FIRST;
+		for (char c; str.get(c); result.second += std::streamoff{1}) {
+			if (state == FIRST) {
+				if (!isWhitespace(c)) { returnFail; }
+				state = REST;
+			} else if (state == REST) {
+				if (!isWhitespace(c)) { break; }
+			}
+		}
+		returnPass;
+	}
+
+	#undef returnFail
+	#undef returnPass
 }
 
 enum class fileFormat { CANONICAL };
@@ -70,10 +135,16 @@ BoardHistory ParseHistory(std::stringstream& strRaw) {
 	}
 
 	std::cout << "There are " << whitespaceRanges.size() << " groups of whitespace chars.\n";
-	auto first = whitespaceRanges.begin();
-	auto last  = whitespaceRanges.rbegin();
-	std::cout << "\tThe first is: " << first->first << " - " << first->second << "\n";
-	std::cout << "\tThe last is: "  << last ->first << " - " << last ->second << "\n";
+	auto wsFirst = whitespaceRanges.begin();
+	auto wsLast  = whitespaceRanges.rbegin();
+	std::cout << "\tThe first is: " << wsFirst->first << " - " << wsFirst->second << "\n";
+	std::cout << "\tThe last is: "  << wsLast ->first << " - " << wsLast ->second << "\n";
+
+	strRaw.clear(); strRaw.seekg(0, std::ios_base::end);
+	ssRange strRange = {0, strRaw.tellg()};
+
+	if (wsFirst->first  == strRange.first ) { commentRanges[wsFirst->first] = wsFirst->second; }
+	if (wsLast ->second == strRange.second) { commentRanges[wsLast ->first] = wsLast ->second; }
 
 	std::stringstream str{};
 
@@ -82,7 +153,6 @@ BoardHistory ParseHistory(std::stringstream& strRaw) {
 		std::streampos i = strRaw.tellg() - std::streampos{1};
 		if (commentRanges.contains(i)) { strRaw.seekg(commentRanges.at(i)); continue; }
 		str.put(c);
-		if (strRaw.peek() == EOF) { str << "[EOF]"; }
 	}
 
 	std::cout << "\"" << str.str() << "\"\n";
