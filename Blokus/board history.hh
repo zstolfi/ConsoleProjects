@@ -7,6 +7,7 @@ class BoardHistory {
 
 
 
+#include <iostream>
 #include <sstream>
 #include <string_view>
 #include <vector>
@@ -16,6 +17,8 @@ class BoardHistory {
 enum class fileFormat { CANONICAL };
 
 namespace /*private*/ {
+	// using streamPos = std::streampos;
+	// using streamOff = std::streamoff;
 	using ssRange     = std::pair<std::streampos, std::streampos>;
 	using ssRangeList = std::map <std::streampos, std::streampos>;
 
@@ -57,19 +60,19 @@ BoardHistory ParseHistory(std::istringstream str) {
 	// Ignore comments & leading/trailing whitespaces
 	ssRangeList commentRanges{};
 	iterateRaw(str, [&](char c) {
-		str::streampos i = str.tellg() - std::streamoff{1};
-		/**/ if (c == '(') { commentRanges[i]; } // TODO: check for mismatching parenthesis
+		str::streampos i = str.tellg();
+		/**/ if (c == '(') { commentRanges[i - std::streamoff{1}]; } // TODO: check for mismatching parenthesis
 		else if (c == ')') { commentRanges.rbegin()->second = i; }
 	});
 	ssRange whitespaceLeading = parse::whitespace(str, commentRanges);
 
 	ssRange wsTest{};
-	std::streamoff endOffset = 0;
+	std::streamoff endOffset = -1;
 	do {
-		endOffset--;
 		str.clear(); str.seekg(endOffset, std::ios_base::end);
 		ssRange wsTest = parse::whiteSpace(str, commentRanges);
-	} while(wsTest.second == wsTest.first);
+	} while(wsTest.second > wsTest.first);
+	endOffset += std::streamoff{1};
 
 	str.clear(); str.seekg(endOffset, std::ios_base::end);
 	ssRange whitespaceTrailing = parse::whiteSpace(str, commentRanges);
@@ -77,22 +80,25 @@ BoardHistory ParseHistory(std::istringstream str) {
 	commentRanges.insert(whitespaceLeading);
 	commentRanges.insert(whitespaceTrailing);
 
-	/* tokenize */
-	// (I'm actually not too familair with interpreter/compiler terms,
-	// so tokenize might not be the right name...)
-	enum dataType {
-		PLAYER_COUNT ,
-		PLYER ORDER ,
-		COLOR_DATA ,
-		PIECE_DATA
-	};
-	std::vector<std::pair<dataType,std::string_view>> tokens {};
 
-	enum {
 
-	} state;
+	// /* tokenize */
+	// // (I'm actually not too familair with interpreter/compiler terms,
+	// // so tokenize might not be the right name...)
+	// enum dataType {
+	// 	PLAYER_COUNT ,
+	// 	PLYER ORDER ,
+	// 	COLOR_DATA ,
+	// 	PIECE_DATA
+	// };
+	// std::vector<std::pair<dataType,std::string_view>> tokens {};
 
-	/* parse pre-game options */
-	BoardHistory board{numPlayers, playerOrder};
-	/**/
+	// enum {
+
+	// } state;
+
+	// /* parse pre-game options */
+
+	BoardHistory board{};
+	return board;
 }
