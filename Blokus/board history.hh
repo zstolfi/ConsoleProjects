@@ -23,7 +23,6 @@ struct BoardHistory {
 
 #include <iostream>
 #include <sstream>
-#include <string_view>
 #include <map>
 #include <utility> // std::pair
 #include <optional>
@@ -55,7 +54,7 @@ namespace /*private*/ {
 		str.seekg(range.first); return {}; // nullopt, or false
 	// otherwise, set the cursor back 1 position
 	#define returnPass \
-		std::cout <<  __LINE__ << "\tSuccessfully parsed range = " << range.first << " - " << range.second << "\n"; \
+		std::cout << __LINE__ << "\t" << range.first << " - " << range.second << "\n"; \
 		/*str.seekg(range.second);*/ return result;
 
 	#define nextChar() \
@@ -63,191 +62,195 @@ namespace /*private*/ {
 		range.second = str.tellg(); \
 		c = str.peek();
 
+	#define Terminal(COND, SUCCEED, FAIL) \
+		if (!(COND)) { FAIL } \
+		SUCCEED \
+		nextChar();
+
+	#define TerminalStr(STR, SUCCEED, FAIL) \
+		for (char d : STR) { \
+			if (d == '\0') { continue; } \
+			if (c != d) { FAIL } \
+			nextChar(); \
+		} SUCCEED
+
+	void Op_Assign   (auto&& a, auto&& b) { a = b; }
+	void Op_Push_Back(auto&& a, auto&& b) { a.push_back(b); }
+
+	#define NonTerminal(TYPE, F, VAR, FAIL) \
+		auto value = parse_##TYPE(str); \
+		if (!value) { FAIL } \
+		F(VAR, *value); \
+		c = str.peek();
+
+	#define NonTerminalNull(TYPE, FAIL) \
+		if (!parse_##TYPE(str)) { FAIL } \
+		c = str.peek();
+
 	// lastChar is a predicate functor
 	std::optional<BoardHistory> parse_CANONICAL_FORMAT(std::stringstream& str, auto&& lastChar) {
 		BoardHistory result = {};
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { NUM, ws1, ORDER, ws2, COLOR, ws3, MOVE, ws4 } state = NUM;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				auto numPlayers = parse_INT(str);
-				if (!numPlayers) { returnFail; }
-				result.numPlayers = *numPlayers;
+				NonTerminal(INT, Op_Assign, result.numPlayers, returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
-				if (!parse_whitespace(str)) { returnFail; }
+				NonTerminalNull(whitespace, returnFail; );
 				state = ORDER;
 			} else if (state == ORDER) {
-				auto playerOrder = parse_PLAYER_ORDER(str);
-				if (!playerOrder) { returnFail; }
-				result.playerOrder = *playerOrder;
+				NonTerminal(PLAYER_ORDER, Op_Assign, result.playerOrder, returnFail; );
 				if (lastChar()) { break; }
 				state = ws2;
 			} else if (state == ws2) {
-				if (!parse_whitespace(str)) { returnFail; }
-				if (str.peek() == 'c') { state = COLOR; }
-				else { state = MOVE; }
+				NonTerminalNull(whitespace, returnFail; );
+				state = (c == 'c') ? COLOR : MOVE;
 			} else if (state == COLOR) {
-				if (!parse_COLOR_DATA(str)) { returnFail; }
+				NonTerminalNull(COLOR_DATA, returnFail; );
 				if (lastChar()) { break; }
 				state = ws3;
 			} else if (state == ws3) {
-				if (!parse_whitespace(str)) { returnFail; }
+				NonTerminalNull(whitespace, returnFail; );
 				state = MOVE;
 			} else if (state == MOVE) {
 				if (c == 'x') {
 					result.movesList.push_back(NoMove{});
 					nextChar();
 				} else {
-					auto move = parse_PIECE_POS(str);
-					if (!move) { returnFail; }
-					result.movesList.push_back(*move);
+					NonTerminal(PIECE_POS, Op_Push_Back, result.movesList, returnFail; );
 				}
 				if (lastChar()) { break; }
 				state = ws4;
 			} else if (state == ws4) {
-				if (!parse_whitespace(str)) { returnFail; }
+				NonTerminalNull(whitespace, returnFail; );
 				state = MOVE;
 			}
 		}
 		returnPass;
-		}
+	}
 
 	std::optional<playerOrder_t> parse_PLAYER_ORDER(std::stringstream& str) {
 		playerOrder_t result = {};
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == FIRST) {
-				if (!('0' <= c&&c <= '9')) { returnFail; }
-				result.push_back(c-'0');
-				nextChar();
+				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , returnFail; );
 				state = REST;
 			} else if (state == REST) {
-				if (!('0' <= c&&c <= '9')) { break; }
-				result.push_back(c-'0');
-				nextChar();
+				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , break; )
 			}
 		}
 		returnPass;
-		}
+	}
 
 	bool parse_COLOR_DATA(std::stringstream& str) {
 		bool result = true;
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { TAG, FIRST, REST } state = TAG;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == TAG) {
-				if (c != 'c') { returnFail; }
-				nextChar();
-				if (c != ':') { returnFail; }
-				nextChar();
+				TerminalStr("c:", /**/; , returnFail; );
 				state = FIRST;
 			} else if (state == FIRST) {
-				if (!(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'))) { returnFail; }
-				nextChar();
+				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , returnFail; );
 				state = REST;
 			} else if (state == REST) {
-				if (!(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'))) { break; }
-				nextChar();
+				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , break; );
 			}
 		}
 		returnPass;
-		}
+	}
 
 	std::optional<PlayerMove> parse_PIECE_POS(std::stringstream& str) {
 		PlayerMove result = {};
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { ID, ws1, X, ws2, Y} state = ID;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == ID) {
-				auto id = parse_ID(str);
-				if (!id) { returnFail; }
-				result.id = *id;
+				NonTerminal(ID, Op_Assign, result.id, returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
-				if (!parse_whitespace(str)) { returnFail; }
+				NonTerminalNull(whitespace, returnFail; );
 				state = X;
 			} else if (state == X) {
-				auto x = parse_INT(str);
-				if (!x) { returnFail; }
-				result.x = *x;
+				NonTerminal(INT, Op_Assign, result.x, returnFail; );
 				state = ws2;
 			} else if (state == ws2) {
-				if (!parse_whitespace(str)) { returnFail; }
+				NonTerminalNull(whitespace, returnFail; );
 				state = Y;
 			} else if (state == Y) {
-				auto y = parse_INT(str);
-				if (!y) { returnFail; }
-				result.y = *y;
+				NonTerminal(INT, Op_Assign, result.y, returnFail; );
 				break;
 			}
 		}
 		returnPass;
-		}
+	}
 
 	std::optional<PieceID> parse_ID(std::stringstream& str) {
 		PieceID result = {0,0};
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { NUM, POINT, ROT } state = NUM;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				auto num = parse_INT(str);
-				if(!num) { returnFail; }
-				result.num = *num;
+				NonTerminal(INT, Op_Assign, result.num, returnFail; );
 				state = POINT;
 			} else if (state == POINT) {
-				if (c != '.') { returnFail; }
-				nextChar();
+				Terminal(c == '.', /**/; , returnFail; );
 				state = ROT;
 			} else if (state == ROT) {
-				auto rot = parse_INT(str);
-				if (!rot) { returnFail; }
-				result.rot = *rot;
+				NonTerminal(INT, Op_Assign, result.rot, returnFail; );
 				break;
 			}
 		}
 		returnPass;
-		}
+	}
 
 	std::optional<unsigned> parse_INT(std::stringstream& str) {
 		unsigned result = 0;
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == FIRST) {
-				if (!('0' <= c&&c <= '9')) { returnFail; }
-				result = c-'0';
-				nextChar();
+				Terminal('0' <= c&&c <= '9', result = c-'0'; , returnFail; );
 				state = REST;
 			} else if (state == REST) {
-				if (!('0' <= c&&c <= '9')) { break; }
-				result = 10*result + (c-'0');
-				nextChar();
+				Terminal('0' <= c&&c <= '9', result = 10*result + (c-'0'); , break; );
 			}
 		}
 		returnPass;
-		}
+	}
 
 	bool parse_whitespace(std::stringstream& str) {
 		bool result = true;
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		for (char c = str.peek(); str; c = str.peek()) {
+		while (str) {
+			[[maybe_unused]] char c = str.peek();
 			if (state == FIRST) {
-				if (!isWhitespace(c)) { returnFail; }
-				nextChar();
+				Terminal(isWhitespace(c), /**/; , returnFail; );
 				state = REST;
 			} else if (state == REST) {
-				if (!isWhitespace(c)) { break; }
-				nextChar();
+				Terminal(isWhitespace(c), /**/; , break; );
 			}
 		}
 		returnPass;
-		}
+	}
 
 	#undef returnFail
 	#undef returnPass
+	#undef nextChar
+	#undef Terminal
+	#undef TerminalStr
+	#undef NonTerminal
+	#undef NonTerminalNull
 }
 
 enum class fileFormat { CANONICAL };
