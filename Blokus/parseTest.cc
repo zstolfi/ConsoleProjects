@@ -8,10 +8,17 @@ int main(int argc, char* args[]) {
 	std::stringstream historyStr;
 	historyStr << file.rdbuf();
 
-	std::cout << "start\n";
+	std::cout << "\nstart\n\n";
 
-	/*BoardHistory test = */ParseHistory(historyStr);
+	BoardHistory test = readGame(historyStr);
 
-	std::cout << "end\n";
+	std::cout << "In this game, there are " << test.numPlayers << " players.\n";
+	std::cout << "The corner numbers are:";
+	for (unsigned corner : test.playerOrder) { std::cout << " " << corner; }
+	std::cout << "\n";
+	std::cout << "The game has a total of " << test.movesList.size() << " moves.\n";
+	std::cout << "The validity of the game is " << "unkown" << "\n";
+
+	std::cout << "\nend\n";
 	return 0;
 }
