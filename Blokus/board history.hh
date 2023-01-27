@@ -54,8 +54,8 @@ namespace /*private*/ {
 		str.seekg(range.first); return {}; // nullopt, or false
 	// otherwise, set the cursor back 1 position
 	#define returnPass \
-		std::cout << __LINE__ << "\t" << range.first << " - " << range.second << "\n"; \
-		/*str.seekg(range.second);*/ return result;
+		/*std::cout << __LINE__ << "\t" << range.first << " - " << range.second << "\n";*/ \
+		return result;
 
 	#define nextChar() \
 		str.seekg(std::streamoff{1}, std::ios_base::cur); \
@@ -74,8 +74,8 @@ namespace /*private*/ {
 			nextChar(); \
 		} SUCCEED
 
-	void Op_Assign   (auto&& a, auto&& b) { a = b; }
-	void Op_Push_Back(auto&& a, auto&& b) { a.push_back(b); }
+	void Assign   (auto&& a, auto&& b) { a = b; }
+	void Push_Back(auto&& a, auto&& b) { a.push_back(b); }
 
 	#define NonTerminal(TYPE, F, VAR, FAIL) \
 		auto value = parse_##TYPE(str); \
@@ -95,13 +95,13 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				NonTerminal(INT, Op_Assign, result.numPlayers, returnFail; );
+				NonTerminal(INT, Assign, result.numPlayers, returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
 				NonTerminalNull(whitespace, returnFail; );
 				state = ORDER;
 			} else if (state == ORDER) {
-				NonTerminal(PLAYER_ORDER, Op_Assign, result.playerOrder, returnFail; );
+				NonTerminal(PLAYER_ORDER, Assign, result.playerOrder, returnFail; );
 				if (lastChar()) { break; }
 				state = ws2;
 			} else if (state == ws2) {
@@ -119,7 +119,7 @@ namespace /*private*/ {
 					result.movesList.push_back(NoMove{});
 					nextChar();
 				} else {
-					NonTerminal(PIECE_POS, Op_Push_Back, result.movesList, returnFail; );
+					NonTerminal(PIECE_POS, Push_Back, result.movesList, returnFail; );
 				}
 				if (lastChar()) { break; }
 				state = ws4;
@@ -173,19 +173,19 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == ID) {
-				NonTerminal(ID, Op_Assign, result.id, returnFail; );
+				NonTerminal(ID, Assign, result.id, returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
 				NonTerminalNull(whitespace, returnFail; );
 				state = X;
 			} else if (state == X) {
-				NonTerminal(INT, Op_Assign, result.x, returnFail; );
+				NonTerminal(INT, Assign, result.x, returnFail; );
 				state = ws2;
 			} else if (state == ws2) {
 				NonTerminalNull(whitespace, returnFail; );
 				state = Y;
 			} else if (state == Y) {
-				NonTerminal(INT, Op_Assign, result.y, returnFail; );
+				NonTerminal(INT, Assign, result.y, returnFail; );
 				break;
 			}
 		}
@@ -199,13 +199,13 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				NonTerminal(INT, Op_Assign, result.num, returnFail; );
+				NonTerminal(INT, Assign, result.num, returnFail; );
 				state = POINT;
 			} else if (state == POINT) {
 				Terminal(c == '.', /**/; , returnFail; );
 				state = ROT;
 			} else if (state == ROT) {
-				NonTerminal(INT, Op_Assign, result.rot, returnFail; );
+				NonTerminal(INT, Assign, result.rot, returnFail; );
 				break;
 			}
 		}
