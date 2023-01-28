@@ -48,194 +48,198 @@ namespace /*private*/ {
 	parseFunc<unsigned>         parse_INT;
 	parseFuncNoReturn           parse_whitespace;
 
-	unsigned depth = 0;
-
-	#define Loop_Start() \
-		depth++;
-
 	// if we fail, move the curor back to the start
-	#define return_Fail \
+	#define returnFail \
 		std::cout << __LINE__ << "\tparsing failed at streampos = " << str.tellg() \
 		          << " and state = " << state << "\n"; \
 		str.seekg(range.first); return {}; // nullopt, or false
 	// otherwise, set the cursor back 1 position
-	#define return_Pass \
-		/*std::cout << __LINE__ << "\t";*/ \
-		/*for (std::size_t i=0; i < depth; i++) { std::cout << "\t"; }*/ \
-		/*std::cout << range.first << " - " << range.second << "\n";*/ \
-		depth--; \
+	#define returnPass \
+		/*std::cout << __LINE__ << "\t" << range.first << " - " << range.second << "\n";*/ \
 		return result;
 
-	#define Next_Char(OFF) \
-		str.seekg(std::streamoff{OFF}, std::ios_base::cur); \
+	#define nextChar() \
+		str.seekg(std::streamoff{1}, std::ios_base::cur); \
 		range.second = str.tellg(); \
 		c = str.peek();
 
 	#define Terminal(COND, SUCCEED, FAIL) \
-		if (COND) { SUCCEED } \
-		else { FAIL } \
-		Next_Char(1);
+		if (!(COND)) { FAIL } \
+		SUCCEED \
+		nextChar();
 
 	#define TerminalStr(STR, SUCCEED, FAIL) \
 		for (std::size_t i=0; i < sizeof STR -1; i++) { \
 			if (c != STR[i]) { FAIL } \
-			Next_Char(1); \
+			nextChar(); \
 		} SUCCEED
 
 	#define NonTerminal(TYPE, SUCCEED, FAIL) \
-		if (auto optValue = parse_##TYPE(str)) { \
-			[[maybe_unused]] auto value = Remove_Optional(optValue); \
-			SUCCEED \
-		} else { FAIL } \
-		Next_Char(0);
+		auto optValue = parse_##TYPE(str); \
+		if (!optValue) { FAIL } \
+		[[maybe_unused]] auto value = Remove_Optional(optValue); \
+		SUCCEED \
+		c = str.peek();
 
-	std::optional<BoardHistory> parse_CANONICAL_FORMAT(std::stringstream& str) {
+	// lastChar is a predicate functor
+	std::optional<BoardHistory> parse_CANONICAL_FORMAT(std::stringstream& str, auto&& lastChar) {
 		BoardHistory result = {};
 		ssRange range = {str.tellg(), str.tellg()};
-		enum { START, COLOR, MOVE } state = START;
+		enum { NUM, ws1, ORDER, ws2, COLOR, ws3, MOVE, ws4 } state = NUM;
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case START:
-				NonTerminal(INT, result.numPlayers = value; , return_Fail; );
-				NonTerminal(whitespace, /**/; , return_Fail; );
-				NonTerminal(PLAYER_ORDER, result.playerOrder = value; , return_Fail; );
-				if (str.eof()) { return_Pass; }
-				NonTerminal(whitespace, /**/; , return_Fail; );
+			if (state == NUM) {
+				NonTerminal(INT, result.numPlayers = value; , returnFail; );
+				state = ws1;
+			} else if (state == ws1) {
+				NonTerminal(whitespace, /**/; , returnFail; );
+				state = ORDER;
+			} else if (state == ORDER) {
+				NonTerminal(PLAYER_ORDER, result.playerOrder = value; , returnFail; );
+				if (lastChar()) { break; }
+				state = ws2;
+			} else if (state == ws2) {
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = (c == 'c') ? COLOR : MOVE;
-			case COLOR:
-				NonTerminal(COLOR_DATA, /**/; , return_Fail; );
-				if (str.eof()) { return_Pass; }
-				NonTerminal(whitespace, /**/; , return_Fail; );
+			} else if (state == COLOR) {
+				NonTerminal(COLOR_DATA, /**/; , returnFail; );
+				if (lastChar()) { break; }
+				state = ws3;
+			} else if (state == ws3) {
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = MOVE;
-			case MOVE:
+			} else if (state == MOVE) {
 				if (c == 'x') {
 					Terminal(true, result.movesList.push_back(NoMove{}); , /**/; );
 				} else {
-					NonTerminal(PIECE_POS, result.movesList.push_back(value); , return_Fail; );
+					NonTerminal(PIECE_POS, result.movesList.push_back(value); , returnFail; );
 				}
-				if (str.eof()) { return_Pass; }
-				NonTerminal(whitespace, /**/; , return_Fail; );
+				if (lastChar()) { break; }
+				state = ws4;
+			} else if (state == ws4) {
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = MOVE;
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	std::optional<playerOrder_t> parse_PLAYER_ORDER(std::stringstream& str) {
 		playerOrder_t result = {};
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		Loop_Start();
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case FIRST:
-				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , return_Fail; );
+			if (state == FIRST) {
+				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , returnFail; );
 				state = REST;
-			case REST:
-				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , return_Pass; )
+			} else if (state == REST) {
+				Terminal('0' <= c&&c <= '9', result.push_back(c-'0'); , break; )
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	bool parse_COLOR_DATA(std::stringstream& str) {
 		bool result = true;
 		ssRange range = {str.tellg(), str.tellg()};
-		enum { START, REST } state = START;
-		Loop_Start();
+		enum { TAG, FIRST, REST } state = TAG;
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case START:
-				TerminalStr("c:", /**/; , return_Fail; );
-				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , return_Fail; );
+			if (state == TAG) {
+				TerminalStr("c:", /**/; , returnFail; );
+				state = FIRST;
+			} else if (state == FIRST) {
+				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , returnFail; );
 				state = REST;
-			case REST:
-				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , return_Pass; );
+			} else if (state == REST) {
+				Terminal(('a' <= c&&c <= 'z') || ('A' <= c&&c <= 'Z'), /**/; , break; );
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	std::optional<PlayerMove> parse_PIECE_POS(std::stringstream& str) {
 		PlayerMove result = {};
 		ssRange range = {str.tellg(), str.tellg()};
-		enum { START } state = START;
-		Loop_Start();
+		enum { ID, ws1, X, ws2, Y} state = ID;
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case START:
-				NonTerminal(ID, result.id = value; , return_Fail; );
-				NonTerminal(whitespace, /**/; , return_Fail; );
-				NonTerminal(INT, result.x = value; , return_Fail; );
-				NonTerminal(whitespace, /**/; , return_Fail; );
-				NonTerminal(INT, result.y = value; , return_Fail; );
-				return_Pass;
+			if (state == ID) {
+				NonTerminal(ID, result.id = value; , returnFail; );
+				state = ws1;
+			} else if (state == ws1) {
+				NonTerminal(whitespace, /**/; , returnFail; );
+				state = X;
+			} else if (state == X) {
+				NonTerminal(INT, result.x = value; , returnFail; );
+				state = ws2;
+			} else if (state == ws2) {
+				NonTerminal(whitespace, /**/; , returnFail; );
+				state = Y;
+			} else if (state == Y) {
+				NonTerminal(INT, result.y = value; , returnFail; );
+				break;
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	std::optional<PieceID> parse_ID(std::stringstream& str) {
 		PieceID result = {0,0};
 		ssRange range = {str.tellg(), str.tellg()};
-		enum { START } state = START;
-		Loop_Start();
+		enum { NUM, POINT, ROT } state = NUM;
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case START:
-				NonTerminal(INT, result.num = value; , return_Fail; );
-				Terminal(c == '.', /**/; , return_Fail; );
-				NonTerminal(INT, result.rot = value; , return_Fail; );
-				return_Pass;
+			if (state == NUM) {
+				NonTerminal(INT, result.num = value; , returnFail; );
+				state = POINT;
+			} else if (state == POINT) {
+				Terminal(c == '.', /**/; , returnFail; );
+				state = ROT;
+			} else if (state == ROT) {
+				NonTerminal(INT, result.rot = value; , returnFail; );
+				break;
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	std::optional<unsigned> parse_INT(std::stringstream& str) {
 		unsigned result = 0;
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		Loop_Start();
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case FIRST:
-				Terminal('0' <= c&&c <= '9', result = c-'0'; , return_Fail; );
+			if (state == FIRST) {
+				Terminal('0' <= c&&c <= '9', result = c-'0'; , returnFail; );
 				state = REST;
-			case REST:
-				Terminal('0' <= c&&c <= '9', result = 10*result + (c-'0'); , return_Pass; );
+			} else if (state == REST) {
+				Terminal('0' <= c&&c <= '9', result = 10*result + (c-'0'); , break; );
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
 	bool parse_whitespace(std::stringstream& str) {
 		bool result = true;
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { FIRST, REST } state = FIRST;
-		Loop_Start();
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
-			switch (state) {
-			case FIRST:
-				Terminal(isWhitespace(c), /**/; , return_Fail; );
+			if (state == FIRST) {
+				Terminal(isWhitespace(c), /**/; , returnFail; );
 				state = REST;
-			case REST:
-				Terminal(isWhitespace(c), /**/; , return_Pass; );
+			} else if (state == REST) {
+				Terminal(isWhitespace(c), /**/; , break; );
 			}
 		}
-		std::unreachable();
+		returnPass;
 	}
 
-	#undef return_Fail
-	#undef return_Pass
-	#undef Next_Char
+	#undef returnFail
+	#undef returnPass
+	#undef nextChar
 	#undef Terminal
 	#undef TerminalStr
 	#undef NonTerminal
@@ -300,7 +304,7 @@ BoardHistory readGame(std::stringstream& strRaw) {
 
 	std::cout << "\"" << str.str() << "\"\n";
 
-	return parse_CANONICAL_FORMAT(str)
+	return parse_CANONICAL_FORMAT(str, [&] { return str.tellg() + std::streamoff{1} == strRange.second; })
 	      .value_or(BoardHistory{});
 }
 
