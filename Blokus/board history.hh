@@ -28,12 +28,13 @@ struct BoardHistory {
 #include <optional>
 
 namespace /*private*/ {
-	// using streamPos = std::streampos;
-	// using streamOff = std::streamoff;
 	using ssRange     = std::pair<std::streampos, std::streampos>;
 	using ssRangeList = std::map <std::streampos, std::streampos>;
 
 	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
+
+	template <typename T> T    Remove_Optional(std::optional<T> value) { return *value; }
+	                      bool Remove_Optional(bool             value) { return  value; }
 
 	// forward declare all parse functions, so we can write them
 	// in any order we want
@@ -68,23 +69,16 @@ namespace /*private*/ {
 		nextChar();
 
 	#define TerminalStr(STR, SUCCEED, FAIL) \
-		for (char d : STR) { \
-			if (d == '\0') { continue; } \
-			if (c != d) { FAIL } \
+		for (std::size_t i=0; i < sizeof STR -1; i++) { \
+			if (c != STR[i]) { FAIL } \
 			nextChar(); \
 		} SUCCEED
 
-	void Assign   (auto&& a, auto&& b) { a = b; }
-	void Push_Back(auto&& a, auto&& b) { a.push_back(b); }
-
-	#define NonTerminal(TYPE, F, VAR, FAIL) \
-		auto value = parse_##TYPE(str); \
-		if (!value) { FAIL } \
-		F(VAR, *value); \
-		c = str.peek();
-
-	#define NonTerminalNull(TYPE, FAIL) \
-		if (!parse_##TYPE(str)) { FAIL } \
+	#define NonTerminal(TYPE, SUCCEED, FAIL) \
+		auto optValue = parse_##TYPE(str); \
+		if (!optValue) { FAIL } \
+		[[maybe_unused]] auto value = Remove_Optional(optValue); \
+		SUCCEED \
 		c = str.peek();
 
 	// lastChar is a predicate functor
@@ -95,36 +89,35 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				NonTerminal(INT, Assign, result.numPlayers, returnFail; );
+				NonTerminal(INT, result.numPlayers = value; , returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = ORDER;
 			} else if (state == ORDER) {
-				NonTerminal(PLAYER_ORDER, Assign, result.playerOrder, returnFail; );
+				NonTerminal(PLAYER_ORDER, result.playerOrder = value; , returnFail; );
 				if (lastChar()) { break; }
 				state = ws2;
 			} else if (state == ws2) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = (c == 'c') ? COLOR : MOVE;
 			} else if (state == COLOR) {
-				NonTerminalNull(COLOR_DATA, returnFail; );
+				NonTerminal(COLOR_DATA, /**/; , returnFail; );
 				if (lastChar()) { break; }
 				state = ws3;
 			} else if (state == ws3) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = MOVE;
 			} else if (state == MOVE) {
 				if (c == 'x') {
-					result.movesList.push_back(NoMove{});
-					nextChar();
+					Terminal(true, result.movesList.push_back(NoMove{}); , /**/; );
 				} else {
-					NonTerminal(PIECE_POS, Push_Back, result.movesList, returnFail; );
+					NonTerminal(PIECE_POS, result.movesList.push_back(value); , returnFail; );
 				}
 				if (lastChar()) { break; }
 				state = ws4;
 			} else if (state == ws4) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = MOVE;
 			}
 		}
@@ -173,19 +166,19 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == ID) {
-				NonTerminal(ID, Assign, result.id, returnFail; );
+				NonTerminal(ID, result.id = value; , returnFail; );
 				state = ws1;
 			} else if (state == ws1) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = X;
 			} else if (state == X) {
-				NonTerminal(INT, Assign, result.x, returnFail; );
+				NonTerminal(INT, result.x = value; , returnFail; );
 				state = ws2;
 			} else if (state == ws2) {
-				NonTerminalNull(whitespace, returnFail; );
+				NonTerminal(whitespace, /**/; , returnFail; );
 				state = Y;
 			} else if (state == Y) {
-				NonTerminal(INT, Assign, result.y, returnFail; );
+				NonTerminal(INT, result.y = value; , returnFail; );
 				break;
 			}
 		}
@@ -199,13 +192,13 @@ namespace /*private*/ {
 		while (str) {
 			[[maybe_unused]] char c = str.peek();
 			if (state == NUM) {
-				NonTerminal(INT, Assign, result.num, returnFail; );
+				NonTerminal(INT, result.num = value; , returnFail; );
 				state = POINT;
 			} else if (state == POINT) {
 				Terminal(c == '.', /**/; , returnFail; );
 				state = ROT;
 			} else if (state == ROT) {
-				NonTerminal(INT, Assign, result.rot, returnFail; );
+				NonTerminal(INT, result.rot = value; , returnFail; );
 				break;
 			}
 		}
