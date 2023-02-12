@@ -17,7 +17,7 @@ int main(int argc, char* args[]) {
 	for (unsigned corner : test.playerOrder) { std::cout << " " << corner; }
 	std::cout << "\n";
 	std::cout << "The game has a total of " << test.movesList.size() << " moves.\n";
-	std::cout << "The validity of the game is " << "unkown" << "\n";
+	std::cout << "The game is " << (test.getValidity() == BoardHistory::VALID ? "valid" : "not valid") << "\n";
 
 	std::cout << "\nend\n";
 	return 0;

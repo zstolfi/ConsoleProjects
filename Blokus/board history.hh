@@ -17,6 +17,26 @@ struct BoardHistory {
 	playerOrder_t playerOrder;
 	// player color is not needed by the computer
 	movesList_t movesList;
+
+	enum boardState { VALID, PARSE_ERROR, INVALID, NO_PLAYERS /* + all the ways the board can be invalid */ };
+
+	explicit BoardHistory()
+		: initalState{NO_PLAYERS} {}
+	explicit BoardHistory(boardState s)
+		: initalState{s} {}
+	explicit BoardHistory(numPlayers_t np, playerOrder_t po)
+		: numPlayers{np}, playerOrder{po}
+		, initalState{VALID} {}
+
+	boardState getValidity() {
+		if (Is_Either(initalState, PARSE_ERROR, NO_PLAYERS)) { return initalState; }
+		/* game checking logic */
+		/* for now, assume the board is right */
+		return VALID;
+	}
+
+private: /* initialization details */
+	boardState initalState = VALID;
 };
 
 
@@ -26,25 +46,29 @@ struct BoardHistory {
 #include <map>
 #include <utility> // std::pair
 #include <optional>
+#include <functional>
 
 namespace /*private*/ {
 	using ssRange     = std::pair<std::streampos, std::streampos>;
 	using ssRangeList = std::map <std::streampos, std::streampos>;
 
-	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
-
-	template <typename T> struct add_optional { using type = std::optional<T>; };
-	template <>     struct add_optional<bool> { using type = bool; };
-	template <typename T> using add_optional_t = typename add_optional<T>::type;
-
-	template <typename T> T    Remove_Optional(std::optional<T> value) { return *value; }
-	                      bool Remove_Optional(bool             value) { return  value; }
+	template <typename T> struct parseActions {};
+	template <> struct parseActions<BoardHistory> {
+		// The idea for these functions is to check if the data is valid (e.g. valid move, playercount, etc)
+		// whose details are seprate from the parse logic
+		std::function<void(numPlayers_t&&)>  onPlayerCount;
+		std::function<void(playerOrder_t&&)> onPlayerOrder;
+		std::function<void(move_t&&)>        onMove;
+		std::function<void()>                onMoveSkip;
+	};
 
 	// forward declare all parse functions, so we can write them
 	// in any order we want
-	template <typename T> using parseFunc = std::optional<T>/**/(std::stringstream&);
-	/*                 */ using parseFuncNoReturn =     bool/**/(std::stringstream&);
+	template <typename T> using parseGrammar = std::optional<T>/**/(std::stringstream&, parseActions<T>&&);
+	template <typename T> using parseFunc    = std::optional<T>/**/(std::stringstream&);
+	/*                 */ using parseFuncNoReturn =        bool/**/(std::stringstream&);
 
+	parseGrammar<BoardHistory>  parse_CANONICAL_FORMAT;
 	parseFunc<playerOrder_t>    parse_PLAYER_ORDER;
 	parseFuncNoReturn           parse_COLOR_DATA;
 	parseFunc<PlayerMove>       parse_PIECE_POS;
@@ -86,6 +110,13 @@ namespace /*private*/ {
 			Next_Char(1); \
 		} SUCCEED
 
+	template <typename T> struct add_optional { using type = std::optional<T>; };
+	template <>     struct add_optional<bool> { using type = bool; };
+	template <typename T> using add_optional_t = typename add_optional<T>::type;
+
+	template <typename T> T    Remove_Optional(std::optional<T> value) { return *value; }
+	                      bool Remove_Optional(bool             value) { return  value; }
+
 	#define NonTerminal(TYPE, SUCCEED, FAIL) \
 		if (auto optValue = parse_##TYPE(str)) { \
 			[[maybe_unused]] auto value = Remove_Optional(optValue); \
@@ -93,9 +124,18 @@ namespace /*private*/ {
 		} else { FAIL } \
 		Next_Char(0);
 
-	// is it illegal to use this many macros?
 	#define NT(NAME, TYPE, INITAL_VAL, FIRST_ENUM, ...) \
 		add_optional_t<TYPE> parse_##NAME(std::stringstream& str) { \
+			TYPE result = INITAL_VAL; \
+			ssRange range = {str.tellg(), str.tellg()}; \
+			enum { FIRST_ENUM, __VA_ARGS__ } state = FIRST_ENUM; \
+			Loop_Start(); \
+			while (str) { \
+				[[maybe_unused]] char c = str.peek(); \
+				switch (state) {
+
+	#define NT_TOP(NAME, TYPE, INITAL_VAL, FIRST_ENUM, ...) \
+		add_optional_t<TYPE> parse_##NAME(std::stringstream& str, parseActions<TYPE>&& actions ) { \
 			TYPE result = INITAL_VAL; \
 			ssRange range = {str.tellg(), str.tellg()}; \
 			enum { FIRST_ENUM, __VA_ARGS__ } state = FIRST_ENUM; \
@@ -107,7 +147,13 @@ namespace /*private*/ {
 	#define NT_End() \
 		} } return_Fail; }
 
-	NT(CANONICAL_FORMAT, BoardHistory, {}, START, COLOR, MOVE)
+
+
+	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
+
+	// TODO: remake non-terminals into a class system, instead of
+	//       using macros
+	NT_TOP(CANONICAL_FORMAT, BoardHistory, BoardHistory{}, START, COLOR, MOVE)
 		case START:
 			NonTerminal(INT, result.numPlayers = value; , return_Fail; );
 			NonTerminal(whitespace, /**/; , return_Fail; );
@@ -251,8 +297,9 @@ BoardHistory readGame(std::stringstream& strRaw) {
 
 	std::cout << "\"" << str.str() << "\"\n";
 
-	return parse_CANONICAL_FORMAT(str)
-	      .value_or(BoardHistory{});
+	using enum BoardHistory::boardState;
+	return parse_CANONICAL_FORMAT(str, parseActions<BoardHistory>{})
+		.value_or(BoardHistory{PARSE_ERROR});
 }
 
 void writeGame(BoardHistory&, std::ostringstream& str);
