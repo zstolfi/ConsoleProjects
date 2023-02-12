@@ -1,33 +1,58 @@
 #pragma once
 #include "common.hh"
+#include "pieces.hh"
 #include <vector>
 #include <variant>
 
+struct BoardSize { unsigned x, y; };
 struct PieceID { unsigned num, rot; };
-struct NoMove {};
 struct PlayerMove { PieceID id; unsigned x, y; };
+struct NoMove {};
 
+using boardSize_t   = BoardSize;
 using numPlayers_t  = unsigned;
 using playerOrder_t = std::vector<unsigned>;
 using move_t        = std::variant<PlayerMove, NoMove>;
 using movesList_t   = std::vector<move_t>;
 
 struct BoardHistory {
+	// TODO: make boardSize part of the grammar
+	const boardSize_t boardSize = {20, 20};
 	numPlayers_t numPlayers;
 	playerOrder_t playerOrder;
 	// player color is not needed by the computer
 	movesList_t movesList;
 
 	enum boardState { VALID ,
-		NO_PLAYERS, TOO_MANY_PLAYERS /* + all the ways the board can be invalid */
+		NO_PLAYERS, TOO_MANY_PLAYERS, PLAYER_ORDER_MISMATCH ,
+		EARLY_MOVE_SKIP, MOVE_AFTER_FINAL ,
+		PIECE_OUT_OF_BOUNDS
 	};
 
 	boardState getValidity() {
 		/* game checking logic */
-		/* for now, assume the board is right */
 		if (numPlayers <= 0) { return NO_PLAYERS; }
 		if (numPlayers >  4) { return TOO_MANY_PLAYERS; }
-		/* etc. */
+		if (playerOrder.size() != numPlayers) { return PLAYER_ORDER_MISMATCH; }
+		
+		/* spatial checks, unoptimized */
+		for (const auto& move : movesList) {
+			bool movesAvailable = false;
+			/* logic, assume true for now */
+			movesAvailable = true;
+			// /**/ if (std::holds_alternative<NoMove>(move)     &&  movesAvailable) { return EARLY_MOVE_SKIP; }
+			// else if (std::holds_alternative<PlayerMove>(move) && !movesAvailable) { return MOVE_AFTER_FINAL; }
+			if (std::holds_alternative<PlayerMove>(move)) {
+				/* bounds check */
+				const auto& curPiece = Pieces[move.id.num].getOption[move.id.rot];
+				const auto& curShape = curPiece.getShape();
+				const auto& size = curShape.size();
+				if (move.x < 0 || move.x + size.n >= boardSize.x
+				 || move.y < 0 || move.y + size.m >= boardSize.y) {
+					return PIECE_OUT_OF_BOUNDS;
+				}
+			}
+		}
 
 		return VALID;
 	}
@@ -78,10 +103,13 @@ namespace /*private*/ {
 		depth--; \
 		return result;
 
+	#define Logic_Error() \
+		std::cout << "Logic Error:\n"; \
+		return_Fail;
+
 	#define Logic_Check() \
 		if (auto err = result.getValidity(); err != BoardHistory::boardState::VALID) { \
-			std::cout << "Logic Error:\n"; \
-			return_Fail; \
+			Logic_Error(); \
 		}
 
 	#define Next_Char(OFF) \
@@ -208,9 +236,13 @@ namespace /*private*/ {
 
 	NT(ID, PieceID, {}, START)
 		case START:
-			NonTerminal(INT, result.num = value; , return_Fail; );
+			NonTerminal(INT, result.num = value-1; , return_Fail; );
+			const unsigned num = result.num, numMax = Pieces.size();
+			if (!(0 < num&&num <= numMax)) { Logic_Error(); }
 			Terminal(c == '.', /**/; , return_Fail; );
-			NonTerminal(INT, result.rot = value; , return_Fail; );
+			NonTerminal(INT, result.rot = value-1; , return_Fail; );
+			const unsigned rot = result.rot, rotMax = Pieces[num].numOptions();
+			if (!(0 < rot&&rot <= rotMax)) { Logic_Error(); }
 			return_Pass;
 	NT_End()
 

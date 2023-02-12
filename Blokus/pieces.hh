@@ -84,90 +84,90 @@ const std::vector<Piece> Pieces {
 	Piece { Symmetry::SYMMETRY, {M,N}, Decode_Str(DATA) }
 
 	    /* ~~~~~~ 1 Monomino ~~~~~~ */
-	/* 0*/Make_Piece(Square   , 1,1, "#") ,
+	Make_Piece(Square   , 1,1, "#") ,
 	    /* ~~~~~~ 1 Domino ~~~~~~ */
-	/* 1*/Make_Piece(Mirror2  , 2,1, "#"
-	                                 "#") ,
+	Make_Piece(Mirror2  , 2,1, "#"
+	                           "#") ,
 	    /* ~~~~~~ 2 Trominoes ~~~~~~ */
-	/* 2*/Make_Piece(Mirror2  , 3,1, "#"
-	                                 "#"
-	                                 "#") ,
+	Make_Piece(Mirror2  , 3,1, "#"
+	                           "#"
+	                           "#") ,
 
-	/* 3*/Make_Piece(Mirror1  , 2,2, "# "
-	                                 "##") ,
+	Make_Piece(Mirror1  , 2,2, "# "
+	                           "##") ,
 	    /* ~~~~~~ 5 Tetrominoes ~~~~~~ */
-	/* 4*/Make_Piece(Mirror2  , 4,1, "#"
-	                                 "#"
-	                                 "#"
-	                                 "#") ,
+	Make_Piece(Mirror2  , 4,1, "#"
+	                           "#"
+	                           "#"
+	                           "#") ,
 
-	/* 5*/Make_Piece(None     , 3,2, "# "
-	                                 "# "
-	                                 "##") ,
+	Make_Piece(None     , 3,2, "# "
+	                           "# "
+	                           "##") ,
 
-	/* 6*/Make_Piece(Mirror1  , 3,2, "# "
-	                                 "##"
-	                                 "# ") ,
+	Make_Piece(Mirror1  , 3,2, "# "
+	                           "##"
+	                           "# ") ,
 
-	/* 7*/Make_Piece(Rotation2, 3,2, "# "
-	                                 "##"
-	                                 " #") ,
+	Make_Piece(Rotation2, 3,2, "# "
+	                           "##"
+	                           " #") ,
 
-	/* 8*/Make_Piece(Square   , 2,2, "##"
-	                                 "##") ,
+	Make_Piece(Square   , 2,2, "##"
+	                           "##") ,
 	    /* ~~~~~~ 12 Pentominoes ~~~~~~ */
-	/* 9*/Make_Piece(Mirror2  , 5,1, "#"
-	                                 "#"
-	                                 "#"
-	                                 "#"
-	                                 "#") ,
+	Make_Piece(Mirror2  , 5,1, "#"
+	                           "#"
+	                           "#"
+	                           "#"
+	                           "#") ,
 
-	/*10*/Make_Piece(None     , 4,2, "# "
-	                                 "# "
-	                                 "# "
-	                                 "##") ,
+	Make_Piece(None     , 4,2, "# "
+	                           "# "
+	                           "# "
+	                           "##") ,
 
-	/*11*/Make_Piece(None     , 4,2, "# "
-	                                 "# "
-	                                 "##"
-	                                 "# ") ,
+	Make_Piece(None     , 4,2, "# "
+	                           "# "
+	                           "##"
+	                           "# ") ,
 
-	/*12*/Make_Piece(None     , 4,2, "# "
-	                                 "# "
-	                                 "##"
-	                                 " #") ,
+	Make_Piece(None     , 4,2, "# "
+	                           "# "
+	                           "##"
+	                           " #") ,
 
-	/*13*/Make_Piece(Mirror1  , 3,2, "##"
-	                                 "# "
-	                                 "##") ,
+	Make_Piece(Mirror1  , 3,2, "##"
+	                           "# "
+	                           "##") ,
 
-	/*14*/Make_Piece(None     , 3,2, "# "
-	                                 "##"
-	                                 "##") ,
+	Make_Piece(None     , 3,2, "# "
+	                           "##"
+	                           "##") ,
 
-	/*15*/Make_Piece(Mirror1  , 3,3, " # "
-	                                 " # "
-	                                 "###") ,
+	Make_Piece(Mirror1  , 3,3, " # "
+	                           " # "
+	                           "###") ,
 
-	/*16*/Make_Piece(Mirror1  , 3,3, "#  "
-	                                 "#  "
-	                                 "###") ,
+	Make_Piece(Mirror1  , 3,3, "#  "
+	                           "#  "
+	                           "###") ,
 
-	/*17*/Make_Piece(Mirror1  , 3,3, "#  "
-	                                 "## "
-	                                 " ##") ,
+	Make_Piece(Mirror1  , 3,3, "#  "
+	                           "## "
+	                           " ##") ,
 
-	/*18*/Make_Piece(Rotation2, 3,3, "#  "
-	                                 "###"
-	                                 "  #") ,
+	Make_Piece(Rotation2, 3,3, "#  "
+	                           "###"
+	                           "  #") ,
 
-	/*19*/Make_Piece(None     , 3,3, "#  "
-	                                 "###"
-	                                 " # ") ,
+	Make_Piece(None     , 3,3, "#  "
+	                           "###"
+	                           " # ") ,
 
-	/*20*/Make_Piece(Square   , 3,3, " # "
-	                                 "###"
-	                                 " # ") ,
+	Make_Piece(Square   , 3,3, " # "
+	                           "###"
+	                           " # ") ,
 	
 	#undef Make_Piece
 };
