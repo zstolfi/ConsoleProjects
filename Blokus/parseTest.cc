@@ -10,7 +10,13 @@ int main(int argc, char* args[]) {
 
 	std::cout << "\nstart\n\n";
 
-	BoardHistory test = readGame(historyStr);
+	BoardHistory test;
+	if (auto value = readGame(historyStr)) {
+		test = *value;
+	} else {
+		std::cout << "Parse Error! (But no termination)";
+		return 1;
+	}
 
 	std::cout << "In this game, there are " << test.numPlayers << " players.\n";
 	std::cout << "The corner numbers are:";
