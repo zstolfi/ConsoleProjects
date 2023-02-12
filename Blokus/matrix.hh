@@ -38,6 +38,12 @@ public:
 		return sizeData;
 	}
 
+	void fill(T val=0) {
+		iterate([&](unsigned i, unsigned j) {
+			(*this)[i,j] = val;
+		});
+	}
+
 	Matrix<T> crop(CropParams p) {
 		Matrix<T> result{{p.mStart + m + p.mEnd ,
 		                  p.nStart + n + p.nEnd}};

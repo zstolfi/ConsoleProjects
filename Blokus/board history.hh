@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hh"
 #include "pieces.hh"
+#include "matrix.hh"
 #include <vector>
 #include <variant>
 
@@ -36,6 +37,7 @@ struct BoardHistory {
 		if (playerOrder.size() != numPlayers) { return PLAYER_ORDER_MISMATCH; }
 		
 		/* spatial checks, unoptimized */
+		board.fill(-1);
 		for (const auto& move : movesList) {
 			bool movesAvailable = false;
 			/* logic, assume true for now */
@@ -46,9 +48,8 @@ struct BoardHistory {
 				/* bounds check */
 				const auto& curPiece = Pieces[move.id.num].getOption[move.id.rot];
 				const auto& curShape = curPiece.getShape();
-				const auto& size = curShape.size();
-				if (move.x < 0 || move.x + size.n >= boardSize.x
-				 || move.y < 0 || move.y + size.m >= boardSize.y) {
+				if (move.x < 0 || move.x + curShape.size().n >= boardSize.x
+				 || move.y < 0 || move.y + curShape.size().m >= boardSize.y) {
 					return PIECE_OUT_OF_BOUNDS;
 				}
 			}
@@ -56,6 +57,9 @@ struct BoardHistory {
 
 		return VALID;
 	}
+
+private:
+	Matrix<char> board {boardSize.y, boardSize.x};
 };
 
 
