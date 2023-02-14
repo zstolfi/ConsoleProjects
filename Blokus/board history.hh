@@ -43,7 +43,7 @@ struct BoardHistory {
 		if (numPlayers <= 0) { return NO_PLAYERS; }
 		if (numPlayers >  4) { return TOO_MANY_PLAYERS; }
 		if (playerOrder.size() != numPlayers) { return PLAYER_ORDER_COUNT; }
-		if (movesList.size() >= Pieces.size()*numPlayers) { return TOO_MANY_MOVES; }
+		if (movesList.size() > Pieces.size()*numPlayers) { return TOO_MANY_MOVES; }
 
 		/* spatial checks, unoptimized */
 		const char EMPTY = -1;
@@ -62,8 +62,8 @@ struct BoardHistory {
 				const auto& curPiece = Pieces[move.id.num].getOption(move.id.rot);
 				const auto& curShape = curPiece.getShape();
 				/* bounds check */
-				if (move.pos.i < 0 || move.pos.i + curShape.size().m >= boardSize.m
-				 || move.pos.j < 0 || move.pos.j + curShape.size().n >= boardSize.n) {
+				if (move.pos.i < 0 || move.pos.i + curShape.size().m > boardSize.m
+				 || move.pos.j < 0 || move.pos.j + curShape.size().n > boardSize.n) {
 					return PIECE_OUT_OF_BOUNDS;
 				}
 
@@ -210,7 +210,6 @@ namespace /*private*/ {
 			switch (state) {
 			case SETTINGS:
 				NonTerminal(INT, result.numPlayers = value; , return_Fail; );
-				Logic_Check();
 				NonTerminal(whitespace, /**/; , return_Fail; );
 				NonTerminal(PLAYER_ORDER, result.playerOrder = value; , return_Fail; );
 				Logic_Check();
@@ -277,11 +276,11 @@ namespace /*private*/ {
 		case START:
 			NonTerminal(INT, result.num = value-1; , return_Fail; );
 			const unsigned num = result.num, numMax = Pieces.size();
-			if (!(0 < num&&num <= numMax)) { Logic_Error(""); }
+			if (!(0 <= num&&num < numMax)) { Logic_Error("PIECE_ID (num)"); }
 			Terminal(c == '.', /**/; , return_Fail; );
 			NonTerminal(INT, result.rot = value-1; , return_Fail; );
 			const unsigned rot = result.rot, rotMax = Pieces[num].numOptions();
-			if (!(0 < rot&&rot <= rotMax)) { Logic_Error(""); }
+			if (!(0 <= rot&&rot < rotMax)) { Logic_Error("PIECE_ID (rot)"); }
 			return_Pass;
 	NT_End()
 
