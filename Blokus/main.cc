@@ -1,3 +1,7 @@
+#include <set>
+#include <vector>
+#include <array>
+
 #include "console.hh"
 #include "draw.hh"
 
@@ -5,6 +9,7 @@
 #include "symmetry.hh"
 #include "matrix.hh"
 #include "pieces.hh"
+#include "board history.hh"
 
 /* -------------- */
 /*  App Behavior  */
@@ -46,6 +51,7 @@ private: /* Game Variables */
 	} state = MENU, prevState = MENU;
 
 	seconds stateTime = totalTime; // time since last state change, used for animation
+	bool stateFirst = true; // first frame of a state
 	void setState(gameState nextState) {
 		prevState = state; state = nextState;
 		stateTime = totalTime;
@@ -57,9 +63,34 @@ private: /* Game Variables */
 
 
 
+	const std::array<WORD,4> colors {
+		0x000C , /*RED*/
+		0x000E , /*YELLOW*/
+		0x000A , /*GREEN*/
+		0x0009   /*BLUE*/
+	};
+
+	struct Player {
+		unsigned ID;
+		unsigned color // index to color palette
+		unsigned corner;
+		std::set<Piece*> pieces;
+
+		explicit Player(unsigned ID, unsigned pos): ID{ID}, corner{pos} {
+			for (std::size_t i=0; i < Pieces.size(); i++) {
+				// pieces.insert(i);
+				pieces.insert(&Pieces[i]);
+			}
+		}
+	};
+
+	std::vector<Player> players {};
+	BoardHistory board;
+
+
 	int cursorX = 0;
 	int cursorY = 0;
-	PieceOption selected = Pieces[13].getOption(0);
+	PieceOption& selected = Pieces[0].getOption(0);
 	Size currentSize = selected.getShape().size();
 
 	virtual void setup() final {
@@ -71,8 +102,8 @@ private: /* Game Variables */
 	virtual void update() final {
 		#define If_Key(VK,ACTION) if (keys[VK] == keyState::PRESSED) { ACTION }
 		#define Key_To_State(VK,STATE) If_Key(VK, setState(STATE); return; )
-		if (state != QUIT)
-			Key_To_State(VK_ESCAPE, QUIT); 
+		if (state != QUIT) { Key_To_State(VK_ESCAPE, QUIT); }
+		if (state != prevState) { stateFirst = true; }
 
 		switch (state) {
 
@@ -89,8 +120,24 @@ private: /* Game Variables */
 
 		case START_OPTIONS: { /* Select colors, player count, player order */
 
+			if (stateFirst) { gameOptions.clear(); }
+			gameOptions.boardSize.x = 20;
+			gameOptions.boardSize.y = 20;
+			const int EMPTY = -1;
+			gameOptions.corners[0] = 3;
+			gameOptions.corners[1] = EMPTY;
+			gameOptions.corners[2] = 1;
+			gameOptions.corners[3] = 0;
+			gameOptions.firstPlayer = 3;
+
 			/*continue*/
-			Key_To_State('C', PIECE_SELECT);
+			bool setupDone = false;
+			If_Key('C', setupDone = true; setState(PIECE_SELECT); );
+			if (setupDone) {
+				/* initialize 'players' vector */
+
+			}
+
 			/*back*/
 			Key_To_State('B', MENU);
 			} break;
@@ -179,6 +226,7 @@ private: /* Game Variables */
 			} break;
 		}
 
+		stateFirst = false;
 		#undef If_Key
 		#undef Key_To_State
 	}
