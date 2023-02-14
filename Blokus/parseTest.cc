@@ -10,7 +10,7 @@ int main(int argc, char* args[]) {
 
 	std::cout << "\nstart\n\n";
 
-	BoardHistory test;
+	BoardHistory test {{20, 20}};
 	if (auto value = readGame(historyStr)) {
 		test = *value;
 	} else {

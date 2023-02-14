@@ -5,12 +5,12 @@
 #include <vector>
 #include <variant>
 
-struct BoardSize { unsigned x, y; };
+/* internally, all matrix sizes/indexes are y,x; the file format is x,y  */
 struct PieceID { unsigned num, rot; };
-struct PlayerMove { PieceID id; unsigned x, y; };
+struct PlayerMove { PieceID id; Pos pos; };
 struct NoMove {};
 
-using boardSize_t   = BoardSize;
+using boardSize_t   = Size;
 using numPlayers_t  = unsigned;
 using playerOrder_t = std::vector<unsigned>;
 using move_t        = std::variant<PlayerMove, NoMove>;
@@ -18,40 +18,64 @@ using movesList_t   = std::vector<move_t>;
 
 struct BoardHistory {
 	// TODO: make boardSize part of the grammar
-	const boardSize_t boardSize = {20, 20};
+	boardSize_t boardSize/* = {20, 20}*/;
 	numPlayers_t numPlayers;
 	playerOrder_t playerOrder;
 	// player color is not needed by the computer
 	movesList_t movesList;
 
-	enum boardState { VALID ,
-		NO_PLAYERS, TOO_MANY_PLAYERS, PLAYER_ORDER_MISMATCH ,
-		EARLY_MOVE_SKIP, MOVE_AFTER_FINAL ,
-		PIECE_OUT_OF_BOUNDS
-	};
+	explicit BoardHistory(boardSize_t bs) : boardSize{bs}, board(bs) {}
 
-	boardState getValidity() {
+	// thanks Bisqwit
+	#define Enum_List(o) \
+		o(VALID) \
+		o(NO_PLAYERS) o(TOO_MANY_PLAYERS) o(PLAYER_ORDER_COUNT) \
+		o(TOO_MANY_MOVES) \
+		o(EARLY_MOVE_SKIP) o(MOVE_AFTER_FINAL) \
+		o(PIECE_OUT_OF_BOUNDS) o(OVERLAPPING_TILES) /*o(TOUCHING_EDGES)*/
+
+	#define o(n) n,
+	enum validity { Enum_List(o) };
+	#undef o
+
+	validity getValidity() {
 		/* game checking logic */
 		if (numPlayers <= 0) { return NO_PLAYERS; }
 		if (numPlayers >  4) { return TOO_MANY_PLAYERS; }
-		if (playerOrder.size() != numPlayers) { return PLAYER_ORDER_MISMATCH; }
-		
+		if (playerOrder.size() != numPlayers) { return PLAYER_ORDER_COUNT; }
+		if (movesList.size() >= Pieces.size()*numPlayers) { return TOO_MANY_MOVES; }
+
 		/* spatial checks, unoptimized */
-		board.fill(-1);
-		for (const auto& move : movesList) {
+		const char EMPTY = -1;
+		board.fill(EMPTY);
+		for (unsigned moveNumber = 0; moveNumber < movesList.size(); moveNumber++) {
+			// player's turn may be a move, or no move
+			const auto& turn = movesList[moveNumber];
+			unsigned char player = moveNumber % numPlayers;
 			bool movesAvailable = false;
 			/* logic, assume true for now */
 			movesAvailable = true;
-			// /**/ if (std::holds_alternative<NoMove>(move)     &&  movesAvailable) { return EARLY_MOVE_SKIP; }
-			// else if (std::holds_alternative<PlayerMove>(move) && !movesAvailable) { return MOVE_AFTER_FINAL; }
-			if (std::holds_alternative<PlayerMove>(move)) {
-				/* bounds check */
-				const auto& curPiece = Pieces[move.id.num].getOption[move.id.rot];
+			// /**/ if (std::holds_alternative<NoMove>(turn)     &&  movesAvailable) { return EARLY_MOVE_SKIP; }
+			// else if (std::holds_alternative<PlayerMove>(turn) && !movesAvailable) { return MOVE_AFTER_FINAL; }
+			if (std::holds_alternative<PlayerMove>(turn)) {
+				const auto& move = std::get<PlayerMove>(turn);
+				const auto& curPiece = Pieces[move.id.num].getOption(move.id.rot);
 				const auto& curShape = curPiece.getShape();
-				if (move.x < 0 || move.x + curShape.size().n >= boardSize.x
-				 || move.y < 0 || move.y + curShape.size().m >= boardSize.y) {
+				/* bounds check */
+				if (move.pos.i < 0 || move.pos.i + curShape.size().m >= boardSize.m
+				 || move.pos.j < 0 || move.pos.j + curShape.size().n >= boardSize.n) {
 					return PIECE_OUT_OF_BOUNDS;
 				}
+
+				/* overlap check (no edge check yet) */
+				validity pieceValidity = VALID;
+				curShape.iterate_const([&](unsigned i, unsigned j) {
+					if (curShape[i,j]) {
+						char& tile = board[i + move.pos.i, j + move.pos.j];
+						if (tile == EMPTY) { tile = player; }
+						else { pieceValidity = OVERLAPPING_TILES; return; }
+					}
+				});
 			}
 		}
 
@@ -59,7 +83,8 @@ struct BoardHistory {
 	}
 
 private:
-	Matrix<char> board {boardSize.y, boardSize.x};
+	/* "scratch" board, only used for internal checks */
+	Matrix<char> board;
 };
 
 
@@ -107,13 +132,23 @@ namespace /*private*/ {
 		depth--; \
 		return result;
 
-	#define Logic_Error() \
-		std::cout << "Logic Error:\n"; \
+	// or alternatively... a const map<enum,const char*>
+	constexpr const char* Validity_To_String(BoardHistory::validity err) {
+		using enum BoardHistory::validity;
+		#define o(n) case n: return #n;
+		switch(err) { Enum_List(o) }
+		#undef o
+		return "";
+	}
+
+	#define Logic_Error(STR) \
+		std::cout << "Logic Error: " << (STR) << "\n"; \
 		return_Fail;
 
 	#define Logic_Check() \
-		if (auto err = result.getValidity(); err != BoardHistory::boardState::VALID) { \
-			Logic_Error(); \
+		if (auto err = result.getValidity(); err != BoardHistory::validity::VALID) { \
+			/* print the error name*/ \
+			Logic_Error(Validity_To_String(err)); \
 		}
 
 	#define Next_Char(OFF) \
@@ -169,7 +204,7 @@ namespace /*private*/ {
 		enum { SETTINGS, COLOR, MOVE } state = SETTINGS;
 		Loop_Start();
 
-		BoardHistory result {};
+		BoardHistory result {{20, 20}};
 
 		while (str) {
 			switch (state) {
@@ -205,7 +240,7 @@ namespace /*private*/ {
 		}
 		// unreachable, return false just incase
 		return_Fail;
-	}
+		}
 
 	NT(PLAYER_ORDER, playerOrder_t, {}, FIRST, REST)
 		case FIRST:
@@ -232,9 +267,9 @@ namespace /*private*/ {
 		case START:
 			NonTerminal(ID, result.id = value; , return_Fail; );
 			NonTerminal(whitespace, /**/; , return_Fail; );
-			NonTerminal(INT, result.x = value; , return_Fail; );
+			NonTerminal(INT, result.pos.j = value; , return_Fail; );
 			NonTerminal(whitespace, /**/; , return_Fail; );
-			NonTerminal(INT, result.y = value; , return_Fail; );
+			NonTerminal(INT, result.pos.i = value; , return_Fail; );
 			return_Pass;
 	NT_End()
 
@@ -242,11 +277,11 @@ namespace /*private*/ {
 		case START:
 			NonTerminal(INT, result.num = value-1; , return_Fail; );
 			const unsigned num = result.num, numMax = Pieces.size();
-			if (!(0 < num&&num <= numMax)) { Logic_Error(); }
+			if (!(0 < num&&num <= numMax)) { Logic_Error(""); }
 			Terminal(c == '.', /**/; , return_Fail; );
 			NonTerminal(INT, result.rot = value-1; , return_Fail; );
 			const unsigned rot = result.rot, rotMax = Pieces[num].numOptions();
-			if (!(0 < rot&&rot <= rotMax)) { Logic_Error(); }
+			if (!(0 < rot&&rot <= rotMax)) { Logic_Error(""); }
 			return_Pass;
 	NT_End()
 
@@ -338,7 +373,6 @@ std::optional<BoardHistory> readGame(std::stringstream& strRaw) {
 
 	std::cout << "\"" << str.str() << "\"\n";
 
-	using enum BoardHistory::boardState;
 	return parse_CANONICAL_FORMAT(str);
 }
 

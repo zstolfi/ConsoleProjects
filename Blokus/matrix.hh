@@ -34,6 +34,10 @@ public:
 		return data[i * n + j];
 	}
 
+	// // allow calling with a Pos type
+	//       T& operator[](Pos p)       { return (*this)[p.i, p.j]; }
+	// const T& operator[](Pos p) const { return (*this)[p.i, p.j]; }
+
 	const Size size() const {
 		return sizeData;
 	}
@@ -55,6 +59,13 @@ public:
 	}
 
 	void iterate(auto&& f) {
+		for (unsigned i=0; i < m; i++) {
+		for (unsigned j=0; j < n; j++) {
+			f(i,j);
+		} }
+	}
+
+	void iterate_const(auto&& f) const {
 		for (unsigned i=0; i < m; i++) {
 		for (unsigned j=0; j < n; j++) {
 			f(i,j);
