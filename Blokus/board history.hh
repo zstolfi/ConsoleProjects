@@ -16,7 +16,11 @@ using playerOrder_t = std::vector<unsigned>;
 using move_t        = std::variant<PlayerMove, NoMove>;
 using movesList_t   = std::vector<move_t>;
 
-struct BoardHistory {
+class BoardHistory {
+	/* "scratch" board, only used for internal checks */
+	Matrix<char> board;
+
+public:
 	// TODO: make boardSize part of the grammar
 	boardSize_t boardSize/* = {20, 20}*/;
 	numPlayers_t numPlayers;
@@ -25,6 +29,8 @@ struct BoardHistory {
 	movesList_t movesList;
 
 	explicit BoardHistory(boardSize_t bs) : boardSize{bs}, board(bs) {}
+
+	Matrix<char> render() { return board; /*copy*/ }
 
 	// thanks Bisqwit
 	#define Enum_List(o) \
@@ -82,9 +88,6 @@ struct BoardHistory {
 		return VALID;
 	}
 
-private:
-	/* "scratch" board, only used for internal checks */
-	Matrix<char> board;
 };
 
 

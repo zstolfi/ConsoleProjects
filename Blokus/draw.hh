@@ -68,7 +68,7 @@ public:
 
 
 
-	struct bounds { signed x0, y0, x1, y1; };
+	struct bounds { signed x, y, w, h; };
 
 	void square(bounds b, pixType p) {
 		drawImplicit(b, p, [&](signed x, signed y) {
@@ -78,8 +78,8 @@ public:
 
 	void squareBorder(bounds b, pixType p) {
 		drawImplicit(b, p, [&](signed x, signed y) {
-			return !(b.x0+1 <= x&&x < b.x1-1)
-			    || !(b.y0+1 <= y&&y < b.y1-1);
+			return !(b.x+1 <= x&&x < b.x+b.w-1)
+			    || !(b.y+1 <= y&&y < b.y+b.h-1);
 		});
 	}
 
@@ -96,8 +96,8 @@ public:
 // private:
 	void iterate(bounds b, auto&& f) {
 		// max & min ensure 'f' is only applied inside the screen
-		for (signed x = std::max<signed>(0, b.x0); x < std::min<signed>(Width_Square, b.x1); x++) {
-		for (signed y = std::max<signed>(0, b.y0); y < std::min<signed>(height      , b.y1); y++) {
+		for (signed x = std::max<signed>(0, b.x); x < std::min<signed>(Width_Square, b.x + b.w); x++) {
+		for (signed y = std::max<signed>(0, b.y); y < std::min<signed>(height      , b.y + b.h); y++) {
 			f(x,y);
 		} }
 	}

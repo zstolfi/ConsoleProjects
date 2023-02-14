@@ -70,28 +70,38 @@ private: /* Game Variables */
 		0x0009   /*BLUE*/
 	};
 
+	struct GameOptions {
+		Size boardSize;
+		std::array<int,4> corners;
+		unsigned firstPlayer;
+
+		GameOptions() { boardSize = {0,0}; corners.fill(-1); firstPlayer = 0; }
+	};
+
 	struct Player {
 		unsigned ID;
-		unsigned color // index to color palette
+		unsigned color; // index to color palette
 		unsigned corner;
-		std::set<Piece*> pieces;
+		std::set<unsigned> pieces;
 
 		explicit Player(unsigned ID, unsigned pos): ID{ID}, corner{pos} {
 			for (std::size_t i=0; i < Pieces.size(); i++) {
-				// pieces.insert(i);
-				pieces.insert(&Pieces[i]);
+				pieces.insert(i);
 			}
 		}
 	};
 
+	GameOptions gameOptions;
 	std::vector<Player> players {};
-	BoardHistory board;
+	BoardHistory board {{20, 20}};
 
 
 	int cursorX = 0;
 	int cursorY = 0;
-	PieceOption& selected = Pieces[0].getOption(0);
-	Size currentSize = selected.getShape().size();
+	unsigned selectedNum = 0;
+	unsigned selectedRot = 0;
+	PieceOption selected = Pieces[0].getOption(0);
+	void updateSelection() { selected = Pieces[selectedNum].getOption(selectedRot); }
 
 	virtual void setup() final {
 		canvas.blankPix = CHAR_INFO{L' ', 0x000F};
@@ -120,9 +130,9 @@ private: /* Game Variables */
 
 		case START_OPTIONS: { /* Select colors, player count, player order */
 
-			if (stateFirst) { gameOptions.clear(); }
-			gameOptions.boardSize.x = 20;
-			gameOptions.boardSize.y = 20;
+			if (stateFirst) { gameOptions = GameOptions{}; }
+			gameOptions.boardSize.m = 20;
+			gameOptions.boardSize.n = 20;
 			const int EMPTY = -1;
 			gameOptions.corners[0] = 3;
 			gameOptions.corners[1] = EMPTY;
@@ -130,16 +140,20 @@ private: /* Game Variables */
 			gameOptions.corners[3] = 0;
 			gameOptions.firstPlayer = 3;
 
-			/*continue*/
-			bool setupDone = false;
-			If_Key('C', setupDone = true; setState(PIECE_SELECT); );
-			if (setupDone) {
-				/* initialize 'players' vector */
-
-			}
-
 			/*back*/
 			Key_To_State('B', MENU);
+			/*continue*/
+			bool setupDone = false;
+			If_Key('C', setupDone = true; setState(PIECE_SELECT); )
+			if (setupDone) {
+				/* initialize 'players' vector */
+				for (unsigned i=0; i < 4; i++) {
+					unsigned j = (i+gameOptions.firstPlayer) % 4; // move clockwise
+					if (gameOptions.corners[j] == EMPTY) { continue; }
+					players.emplace_back(players.size(), j);
+				}
+			}
+
 			} break;
 
 		case VIEW_BOARD: { /* Use arrow keys to view board history */
@@ -149,8 +163,12 @@ private: /* Game Variables */
 		case PIECE_SELECT: { /* Select colors, player count, player order */
 
 			/*move selection*/
-			If_Key(VK_LEFT , /* code */ )
-			If_Key(VK_RIGHT, /* code */ )
+			int step = 0;
+			If_Key(VK_LEFT , step--; )
+			If_Key(VK_RIGHT, step++; )
+			selectedNum += step + Pieces.size();
+			selectedNum %= Pieces.size();
+			updateSelection();
 
 			Key_To_State(VK_RETURN, PIECE_MOVE);
 			} break;
@@ -164,6 +182,7 @@ private: /* Game Variables */
 			Apply_Move(VK_DOWN , cursorY++;)
 			#undef Apply_Move
 
+			const Size& currentSize = selected.getShape().size();
 			signed loopX0 = 0-currentSize.n, loopX1 = width-1;
 			signed loopY0 = 0-currentSize.m, loopY1 = height-1;
 
@@ -187,6 +206,7 @@ private: /* Game Variables */
 
 			if (stateTime < seconds{0.5}) { return; }
 			/*if currentPlayer.numPieces = 0*/
+			/*or currentPlayer.numMovesAvailable = 0*/
 				/*remove current player*/
 				/*setState(PLAYER_FINAL_MOVE);*/
 			/*else*/
@@ -243,8 +263,8 @@ private: /* Game Variables */
 		if (Is_Either(state, VIEW_BOARD, PIECE_SELECT, PIECE_MOVE ,
 		              POSITION_ACCEPT, POSITION_REJECT ,
 		              PLAYER_FINAL_MOVE, GAME_OVER)) {
-			canvas.squareBorder({ 9, 9,31,31}, CHAR_INFO{L'█', 0x000F});
-			canvas.drawImplicit({10,10,30,30}, CHAR_INFO{L'█', 0x0008} ,
+			canvas.squareBorder({ 9, 9,22,22}, CHAR_INFO{L'█', 0x000F});
+			canvas.drawImplicit({10,10,20,20}, CHAR_INFO{L'█', 0x0008} ,
 				[&](signed x, signed y) { return (x&1) ^ (y&1); });
 		}
 
@@ -266,6 +286,13 @@ private: /* Game Variables */
 			} break;
 
 		case PIECE_SELECT: {
+
+			const Size& currentSize = selected.getShape().size();
+			canvasType::bounds pieceBounds = {0, 0, currentSize.n, currentSize.m};
+			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
+				[&](signed x, signed y) { return selected.getShape()[y, x]; }
+			);
+
 			canvas.text(0, 0, L"Arrow keys to select piece type & orientation");
 			canvas.text(0, 39, L"[ENTER continue]");
 		} break;
@@ -274,7 +301,8 @@ private: /* Game Variables */
 			canvas.text(0, 0, L"Move the piece around & choose permutation with A or D");
 			canvas.text(0, 39, L"[ENTER continue]");
 
-			canvasType::bounds pieceBounds = {cursorX, cursorY, cursorX + currentSize.n, cursorY + currentSize.m};
+			const Size& currentSize = selected.getShape().size();
+			canvasType::bounds pieceBounds = {cursorX, cursorY, currentSize.n, currentSize.m};
 			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
 				[&](signed x, signed y) { return selected.getShape()[y-cursorY, x-cursorX]; });
 			} break;
