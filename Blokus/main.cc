@@ -9,7 +9,7 @@
 #include "symmetry.hh"
 #include "matrix.hh"
 #include "pieces.hh"
-#include "board history.hh"
+#include "board.hh"
 
 /* -------------- */
 /*  App Behavior  */
@@ -95,7 +95,7 @@ private: /* Game Variables */
 
 	GameOptions gameOptions;
 	std::vector<Player> players {};
-	BoardHistory board {{20, 20}};
+	Board board {{20, 20}};
 
 
 	int cursorX = 0;

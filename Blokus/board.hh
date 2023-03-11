@@ -16,7 +16,7 @@ using playerOrder_t = std::vector<unsigned>;
 using move_t        = std::variant<PlayerMove, NoMove>;
 using movesList_t   = std::vector<move_t>;
 
-class BoardHistory {
+class Board {
 	/* "scratch" board, only used for internal checks */
 	Matrix<char> board;
 
@@ -28,12 +28,12 @@ public:
 	// player color is not needed by the computer
 	movesList_t movesList;
 
-	explicit BoardHistory(boardSize_t bs) : board{bs}, boardSize{bs} {}
+	explicit Board(boardSize_t bs) : board{bs}, boardSize{bs} {}
 
 	Matrix<char> render() { return board; /*copy*/ }
 
 	// thanks Bisqwit
-	#define Enum_List(o) \
+	#define Validity_List(o) \
 		o(VALID) \
 		o(NO_PLAYERS) o(TOO_MANY_PLAYERS) o(PLAYER_ORDER_COUNT) \
 		o(TOO_MANY_MOVES) \
@@ -41,7 +41,7 @@ public:
 		o(PIECE_OUT_OF_BOUNDS) o(OVERLAPPING_TILES) /*o(TOUCHING_EDGES)*/
 
 	#define o(n) n,
-	enum validity { Enum_List(o) };
+	enum validity { Validity_List(o) };
 	#undef o
 
 	validity getValidity() {
@@ -108,7 +108,7 @@ namespace /*private*/ {
 	template <typename T> using parseFunc    = std::optional<T>/**/(std::stringstream&);
 	/*                 */ using parseFuncNoReturn =        bool/**/(std::stringstream&);
 
-	parseFunc<BoardHistory>     parse_CANONICAL_FORMAT;
+	parseFunc<Board>     parse_CANONICAL_FORMAT;
 	parseFunc<playerOrder_t>    parse_PLAYER_ORDER;
 	parseFuncNoReturn           parse_COLOR_DATA;
 	parseFunc<PlayerMove>       parse_PIECE_POS;
@@ -136,10 +136,10 @@ namespace /*private*/ {
 		return result;
 
 	// or alternatively... a const map<enum,const char*>
-	constexpr const char* Validity_To_String(BoardHistory::validity err) {
-		using enum BoardHistory::validity;
+	constexpr const char* Validity_To_String(Board::validity err) {
+		using enum Board::validity;
 		#define o(n) case n: return #n;
-		switch(err) { Enum_List(o) }
+		switch(err) { Validity_List(o) }
 		#undef o
 		return "";
 	}
@@ -149,7 +149,7 @@ namespace /*private*/ {
 		return_Fail;
 
 	#define Logic_Check() \
-		if (auto err = result.getValidity(); err != BoardHistory::validity::VALID) { \
+		if (auto err = result.getValidity(); err != Board::validity::VALID) { \
 			/* print the error name*/ \
 			Logic_Error(Validity_To_String(err)); \
 		}
@@ -202,12 +202,12 @@ namespace /*private*/ {
 
 	constexpr isWhitespace(char c) { return Is_Either(c,' ',',','\r','\n','\t'); }
 
-	std::optional<BoardHistory> parse_CANONICAL_FORMAT(std::stringstream& str) {
+	std::optional<Board> parse_CANONICAL_FORMAT(std::stringstream& str) {
 		ssRange range = {str.tellg(), str.tellg()};
 		enum { SETTINGS, COLOR, MOVE } state = SETTINGS;
 		Loop_Start();
 
-		BoardHistory result {{20, 20}};
+		Board result {{20, 20}};
 
 		while (str) {
 			switch (state) {
@@ -321,7 +321,7 @@ enum class fileFormat { CANONICAL };
 
 template <fileFormat format = fileFormat::CANONICAL>
 // TODO: change strRaw back into a istringstream
-std::optional<BoardHistory> readGame(std::stringstream& strRaw) {
+std::optional<Board> readGame(std::stringstream& strRaw) {
 	std::cout << "Parsing History...\n";
 	/* preprocess */
 	// Create 'str' variable wich is just strRaw without comments or leading/trailing whitespaces
@@ -378,4 +378,4 @@ std::optional<BoardHistory> readGame(std::stringstream& strRaw) {
 	return parse_CANONICAL_FORMAT(str);
 }
 
-void writeGame(BoardHistory&, std::ostringstream& str);
+void writeGame(Board&, std::ostringstream& str);

@@ -68,9 +68,7 @@ public:
 
 
 
-	struct bounds {
-		signed x, y; unsigned w, h;
-	};
+	struct bounds { signed x, y; unsigned w, h; };
 
 	void square(bounds b, pixType p) {
 		drawImplicit(b, p, [&](signed x, signed y) {
