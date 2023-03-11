@@ -1,4 +1,4 @@
-#include "board history.hh"
+#include "board parse.hh"
 #include <fstream>
 
 int main(int argc, char* args[]) {
@@ -10,7 +10,7 @@ int main(int argc, char* args[]) {
 
 	std::cout << "\nstart\n\n";
 
-	BoardHistory test {{20, 20}};
+	Board test {{20, 20}};
 	if (auto value = readGame(historyStr)) {
 		test = *value;
 	} else {
@@ -23,7 +23,7 @@ int main(int argc, char* args[]) {
 	for (unsigned corner : test.playerOrder) { std::cout << " " << corner; }
 	std::cout << "\n";
 	std::cout << "The game has a total of " << test.movesList.size() << " moves.\n";
-	std::cout << "The game is " << (test.getValidity() == BoardHistory::VALID ? "valid" : "not valid") << "\n";
+	std::cout << "The game is " << (test.getValidity() == Board::VALID ? "valid" : "not valid") << "\n";
 
 	std::cout << "\nend\n";
 	return 0;

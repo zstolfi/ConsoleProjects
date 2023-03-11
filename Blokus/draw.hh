@@ -78,8 +78,8 @@ public:
 
 	void squareBorder(bounds b, pixType p) {
 		drawImplicit(b, p, [&](signed x, signed y) {
-			return !(b.x+1 <= x&&x < b.x+b.w-1)
-			    || !(b.y+1 <= y&&y < b.y+b.h-1);
+			return !(1 <= x&&x < b.w-1)
+			    || !(1 <= y&&y < b.h-1);
 		});
 	}
 
@@ -104,7 +104,13 @@ public:
 
 	void drawImplicit(bounds b, pixType p, auto&& condition) {
 		iterate(b, [&](signed x, signed y) {
-			if (condition(x,y)) { setPixel(x,y, p); }
+			if (condition(x-b.x, y-b.y)) { setPixel(x,y, p); }
+		});
+	}
+
+	void drawImage(bounds b, auto& data, auto&& interpret) {
+		iterate(b, [&](signed x, signed y) {
+			setPixel(x, y, interpret(data[x-b.x, y-b.y]));
 		});
 	}
 

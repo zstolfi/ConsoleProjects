@@ -1,7 +1,3 @@
-#include <set>
-#include <vector>
-#include <array>
-
 #include "console.hh"
 #include "draw.hh"
 
@@ -10,6 +6,11 @@
 #include "matrix.hh"
 #include "pieces.hh"
 #include "board.hh"
+// #include "board parse.hh"
+
+#include <set>
+#include <vector>
+#include <array>
 
 /* -------------- */
 /*  App Behavior  */
@@ -76,7 +77,7 @@ private: /* Game Variables */
 		Size boardSize;
 		std::array<int,4> corners;
 		unsigned firstPlayer;
-
+		// TODO: make proper constructor
 		GameOptions() { boardSize = {0,0}; corners.fill(-1); firstPlayer = 0; }
 	};
 
@@ -139,9 +140,9 @@ private: /* Game Variables */
 			const int EMPTY = -1;
 			gameOptions.corners[0] = 3;
 			gameOptions.corners[1] = EMPTY;
-			gameOptions.corners[2] = 1;
-			gameOptions.corners[3] = 0;
-			gameOptions.firstPlayer = 3;
+			gameOptions.corners[2] = 0;
+			gameOptions.corners[3] = 1;
+			gameOptions.firstPlayer = 2;
 
 			/*back*/
 			Key_To_State('B', MENU);
@@ -271,13 +272,20 @@ private: /* Game Variables */
 		}
 		canvas.clear();
 
-		/* Draw the bpard */
+		/* Draw the board */
 		if (Is_Either(state, VIEW_BOARD, PIECE_SELECT, PIECE_MOVE ,
 		              POSITION_ACCEPT, POSITION_REJECT ,
 		              PLAYER_FINAL_MOVE, GAME_OVER)) {
 			canvas.squareBorder({ 9, 9,22,22}, CHAR_INFO{L'█', 0x000F});
-			canvas.drawImplicit({10,10,20,20}, CHAR_INFO{L'█', 0x0008} ,
-				[&](signed x, signed y) { return (x&1) ^ (y&1); });
+			// canvas.drawImplicit({10,10,20,20}, CHAR_INFO{L'█', 0x0008} ,
+			// 	[&](signed x, signed y) {
+			// 		return (x&1) ^ (y&1);
+			// 	});
+			canvas.drawImage({10,10,20,20}, board.render() ,
+				[&](auto tile) {
+					if (0 <= tile&&tile < 4) { return CHAR_INFO{L'█', colors[tile]}; }
+					else { return CHAR_INFO{L'█', 0x0000}; }
+				});
 		}
 
 		switch (state) {
@@ -302,7 +310,7 @@ private: /* Game Variables */
 			const Size& currentSize = selected.getShape().size();
 			canvasType::bounds pieceBounds = {2, 2, currentSize.n, currentSize.m};
 			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
-				[&](signed x, signed y) { return selected.getShape()[y-2, x-2]; }
+				[&](signed x, signed y) { return selected.getShape()[y, x]; }
 			);
 
 			canvas.text(0, 0, L"Arrow keys to select piece type");
@@ -316,7 +324,7 @@ private: /* Game Variables */
 			const Size& currentSize = selected.getShape().size();
 			canvasType::bounds pieceBounds = {cursorX, cursorY, currentSize.n, currentSize.m};
 			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
-				[&](signed x, signed y) { return selected.getShape()[y-cursorY, x-cursorX]; });
+				[&](signed x, signed y) { return selected.getShape()[y, x]; });
 			} break;
 
 		case POSITION_ACCEPT: {
