@@ -28,7 +28,7 @@ public:
 	// player color is not needed by the computer
 	movesList_t movesList;
 
-	explicit BoardHistory(boardSize_t bs) : boardSize{bs}, board(bs) {}
+	explicit BoardHistory(boardSize_t bs) : board{bs}, boardSize{bs} {}
 
 	Matrix<char> render() { return board; /*copy*/ }
 

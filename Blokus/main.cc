@@ -32,7 +32,8 @@ public: /* Initialize Canvas */
 
 private: /* Game Variables */
 
-	enum gameState { // https://files.catbox.moe/6x9rk6.png
+	enum gameState {
+		// https://files.catbox.moe/6x9rk6.png
 		MENU ,
 		ABOUT ,
 		START_OPTIONS ,
@@ -50,15 +51,16 @@ private: /* Game Variables */
 		QUIT
 	} state = MENU, prevState = MENU;
 
-	seconds stateTime = totalTime; // time since last state change, used for animation
+	seconds stateStartTime = totalTime;
+	seconds stateTime = seconds{0}; // time since last state change, used for animation
 	bool stateFirst = true; // first frame of a state
 	void setState(gameState nextState) {
 		prevState = state; state = nextState;
-		stateTime = totalTime;
+		stateStartTime = totalTime;
 	}
 	void undoState() { // only used in QUIT state
 		state = prevState; prevState = MENU;
-		stateTime = totalTime;
+		stateStartTime = totalTime;
 	}
 
 
@@ -114,6 +116,7 @@ private: /* Game Variables */
 		#define Key_To_State(VK,STATE) If_Key(VK, setState(STATE); return; )
 		if (state != QUIT) { Key_To_State(VK_ESCAPE, QUIT); }
 		if (state != prevState) { stateFirst = true; }
+		stateTime = totalTime - stateStartTime;
 
 		switch (state) {
 
@@ -144,7 +147,7 @@ private: /* Game Variables */
 			Key_To_State('B', MENU);
 			/*continue*/
 			bool setupDone = false;
-			If_Key('C', setupDone = true; setState(PIECE_SELECT); )
+			If_Key('C', setupDone = true; setState(PIECE_SELECT); );
 			if (setupDone) {
 				/* initialize 'players' vector */
 				for (unsigned i=0; i < 4; i++) {
@@ -162,10 +165,12 @@ private: /* Game Variables */
 
 		case PIECE_SELECT: { /* Select colors, player count, player order */
 
+			if (stateFirst) { selectedRot = 0; }
+
 			/*move selection*/
 			int step = 0;
-			If_Key(VK_LEFT , step--; )
-			If_Key(VK_RIGHT, step++; )
+			If_Key(VK_LEFT , step--; );
+			If_Key(VK_RIGHT, step++; );
 			selectedNum += step + Pieces.size();
 			selectedNum %= Pieces.size();
 			updateSelection();
@@ -176,10 +181,10 @@ private: /* Game Variables */
 		case PIECE_MOVE: { /* Move selected piece with arrow keys, enter to place */
 
 			#define Apply_Move(KEY,ACTION) if ((frameCount % 10 == 0) && keys[KEY] == keyState::HELD) { ACTION }
-			Apply_Move(VK_LEFT , cursorX--;)
-			Apply_Move(VK_RIGHT, cursorX++;)
-			Apply_Move(VK_UP   , cursorY--;)
-			Apply_Move(VK_DOWN , cursorY++;)
+			Apply_Move(VK_LEFT , cursorX--;);
+			Apply_Move(VK_RIGHT, cursorX++;);
+			Apply_Move(VK_UP   , cursorY--;);
+			Apply_Move(VK_DOWN , cursorY++;);
 			#undef Apply_Move
 
 			const Size& currentSize = selected.getShape().size();
@@ -191,20 +196,27 @@ private: /* Game Variables */
 			if (cursorY < loopY0) { cursorY = loopY1; }
 			if (cursorY > loopY1) { cursorY = loopY0; }
 
-			// TODO: allow player to go back & select other piece
+			Key_To_State('B', PIECE_SELECT);
 			// TODO: use more natural movements (i.e., flip rotate)
+			int step = 0;
+			If_Key(VK_OEM_COMMA , step--; );
+			If_Key(VK_OEM_PERIOD, step++; );
+			selectedRot += step + Pieces[selectedNum].numOptions();
+			selectedRot %= Pieces[selectedNum].numOptions();
+			updateSelection();
+
 			Key_To_State(VK_RETURN, true ? POSITION_ACCEPT : POSITION_REJECT);
 			} break;
 
 		case POSITION_REJECT: { /* Blink for ~1 second */
 
-			if (stateTime < seconds{0.5}) { return; }
-			setState(PIECE_MOVE); return;
+			if (stateTime < seconds{0.5}) { break; }
+			setState(PIECE_MOVE);
 			} break;
 
 		case POSITION_ACCEPT: { /* Blink for ~1 second, then go to next player */
 
-			if (stateTime < seconds{0.5}) { return; }
+			if (stateTime < seconds{0.5}) { break; }
 			/*if currentPlayer.numPieces = 0*/
 			/*or currentPlayer.numMovesAvailable = 0*/
 				/*remove current player*/
@@ -212,17 +224,17 @@ private: /* Game Variables */
 			/*else*/
 				/*nextPlayer()*/
 
-			setState(PIECE_SELECT); return;
+			setState(PIECE_SELECT);
 			} break;
 
 		case PLAYER_FINAL_MOVE: { /* display 'player X is out' message, then go to next player */
 
-			if (stateTime < seconds{2}) { return; }
+			if (stateTime < seconds{2}) { break; }
 			/*if all players.numPieces = 0*/
 				/*setState(GAME_OVER)*/
 			/*else*/
 				/*nextPlayer()*/
-			setState(PIECE_SELECT); return;
+			setState(PIECE_SELECT);
 			} break;
 
 		case GAME_OVER: { /* display 'player X won' or possible ties */
@@ -241,8 +253,8 @@ private: /* Game Variables */
 
 		case QUIT: {
 
-			If_Key(VK_ESCAPE, quitConsole(); break; )
-			If_Key('B', undoState(); break; )
+			If_Key(VK_ESCAPE, quitConsole(); break; );
+			If_Key('B', undoState(); break; );
 			} break;
 		}
 
@@ -288,18 +300,18 @@ private: /* Game Variables */
 		case PIECE_SELECT: {
 
 			const Size& currentSize = selected.getShape().size();
-			canvasType::bounds pieceBounds = {0, 0, currentSize.n, currentSize.m};
+			canvasType::bounds pieceBounds = {2, 2, currentSize.n, currentSize.m};
 			canvas.drawImplicit(pieceBounds, CHAR_INFO{L'█', 0x0004} ,
-				[&](signed x, signed y) { return selected.getShape()[y, x]; }
+				[&](signed x, signed y) { return selected.getShape()[y-2, x-2]; }
 			);
 
-			canvas.text(0, 0, L"Arrow keys to select piece type & orientation");
+			canvas.text(0, 0, L"Arrow keys to select piece type");
 			canvas.text(0, 39, L"[ENTER continue]");
 		} break;
 
 		case PIECE_MOVE: {
-			canvas.text(0, 0, L"Move the piece around & choose permutation with A or D");
-			canvas.text(0, 39, L"[ENTER continue]");
+			canvas.text(0, 0, L"Move the piece around & choose permutation with '<' or '>'");
+			canvas.text(0, 39, L"[B back]      [ENTER continue]");
 
 			const Size& currentSize = selected.getShape().size();
 			canvasType::bounds pieceBounds = {cursorX, cursorY, currentSize.n, currentSize.m};

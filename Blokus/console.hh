@@ -14,11 +14,13 @@ using seconds = std::chrono::duration<double, std::ratio<1>>;
 // TODO: system to restore original console style
 class ConsoleWindow {
 public: /* Public Constructor */
-	struct initSettings { short width, height, fontW, fontH; };
+	struct initSettings { SHORT width, height, fontW, fontH; };
 	ConsoleWindow(std::wstring title, initSettings s)
 	: title{title} 
 	, width{s.width}, height{s.height}
-	, windowRect{0,0, width-1, height-1} {
+	, windowRect{0, 0,
+		         static_cast<SHORT>(width -1),
+		         static_cast<SHORT>(height-1)} {
 		screenBuffer.resize(s.width * s.height);
 
 		consoleIn  = GetStdHandle(STD_INPUT_HANDLE );
