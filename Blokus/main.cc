@@ -360,16 +360,31 @@ private: /* Game Variables */
 /*      Main      */
 /* -------------- */
 
-struct parseArguments {
-	/*settings go here*/
+#include "board parse.hh"
+#include <fstream>
 
-	parseArguments(int argc, char* args[]) {}
+struct parseArguments {
+	bool displayMode = false;
+	std::stringstream historyStr;
+
+	parseArguments(int argc, char* argv[]) {
+		if (arvc > 1) {
+			displayMode = true;
+			if (auto file = std::ifstream{args[1]}) {
+				historyStr << file.rdbuf();
+			} else {
+				std::cerr << "Error!: Failed to open \"" << args[1] << "\"\n";
+				displayMode = false;
+			}
+		}
+	}
 };
 
-int main(int argc, char* args[]) {
-	auto settings = parseArguments{argc, args};
-	MainApp app{L"Blokus Experiments", 
-               {.width = 80, .height = 40, .fontW = 8, .fontH = 16}};
+int main(int argc, char* argv[]) {
+	auto settings = parseArguments{argc, argv};
+	MainApp app{L"Blokus Experiments", settings,
+               {.width = 80, .height = 40,
+                .fontW = 8 , .fontH  = 16}};
 
     app.start();
     while (!app.quit()) {
