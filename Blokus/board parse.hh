@@ -285,4 +285,5 @@ std::optional<Board> readGame(std::stringstream& strRaw) {
 	return parse_CANONICAL_FORMAT(str);
 }
 
+// TODO:
 void writeGame(Board&, std::ostringstream& str);

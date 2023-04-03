@@ -15,7 +15,7 @@ using seconds = std::chrono::duration<double, std::ratio<1>>;
 class ConsoleWindow {
 public: /* Public Constructor */
 	struct initSettings { SHORT width, height, fontW, fontH; };
-	ConsoleWindow(std::wstring title, initSettings s)
+	ConsoleWindow(std::wstring title, const initSettings& s)
 	: title{title} 
 	, width{s.width}, height{s.height}
 	, windowRect{0, 0,

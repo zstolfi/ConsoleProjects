@@ -6,7 +6,6 @@
 #include "matrix.hh"
 #include "pieces.hh"
 #include "board.hh"
-// #include "board parse.hh"
 
 #include <set>
 #include <vector>
@@ -15,6 +14,13 @@
 /* -------------- */
 /*  App Behavior  */
 /* -------------- */
+
+struct parseArguments {
+	bool displayOnly = false;
+	Board inputHistory {{20, 20}};
+
+	parseArguments(int argc, char* argv[]);
+};
 
 class MainApp : public ConsoleWindow {
 public: /* Initialize Canvas */
@@ -29,9 +35,14 @@ public: /* Initialize Canvas */
 	};
 
 	/* Constructor */
-	using ConsoleWindow::ConsoleWindow;
+	MainApp(std::wstring title, const parseArguments& args, const initSettings& s)
+	: ConsoleWindow(title, s) {
+		displayOnly = args.displayOnly;
+	}
 
 private: /* Game Variables */
+
+	bool displayOnly = false;
 
 	enum gameState {
 		// https://files.catbox.moe/6x9rk6.png
@@ -109,7 +120,11 @@ private: /* Game Variables */
 	virtual void setup() final {
 		canvas.blankPix = CHAR_INFO{L' ', 0x000F};
 		canvas.clear();
-		// noDraw = true;
+
+		if (displayOnly) {
+			state = VIEW_BOARD;
+			prevState = VIEW_BOARD;
+		}
 	}
 
 	virtual void update() final {
@@ -363,22 +378,25 @@ private: /* Game Variables */
 #include "board parse.hh"
 #include <fstream>
 
-struct parseArguments {
-	bool displayMode = false;
-	std::stringstream historyStr;
-
-	parseArguments(int argc, char* argv[]) {
-		if (arvc > 1) {
-			displayMode = true;
-			if (auto file = std::ifstream{args[1]}) {
-				historyStr << file.rdbuf();
+parseArguments::parseArguments(int argc, char* argv[]) {
+	if (argc > 1) {
+		displayOnly = true;
+		if (auto file = std::ifstream{argv[1]}) {
+			// TODO: allow file input directly into readGame()
+			std::stringstream historyStr;
+			historyStr << file.rdbuf();
+			if (auto board = readGame(historyStr)) {
+				inputHistory = *board;
 			} else {
-				std::cerr << "Error!: Failed to open \"" << args[1] << "\"\n";
-				displayMode = false;
+				std::cerr << "Parse Error!";
+				displayOnly = false;
 			}
+		} else {
+			std::cerr << "Error!: Failed to open \"" << argv[1] << "\"\n";
+			displayOnly = false;
 		}
 	}
-};
+}
 
 int main(int argc, char* argv[]) {
 	auto settings = parseArguments{argc, argv};
